@@ -152,6 +152,7 @@ type gossipChannel struct {
 	stateInfoMsgStore         *stateInfoCache
 	leaderMsgStore            msgstore.MessageStore
 	chainID                   common.ChannelID
+	archivedBlockfileMsgStore msgstore.MessageStore
 	blocksPuller              pull.Mediator
 	logger                    util.Logger
 	stateInfoPublishScheduler *time.Ticker
@@ -276,6 +277,7 @@ func NewGossipChannel(pkiID common.PKIidType, org api.OrgIdentityType, mcs api.M
 	pol := protoext.NewGossipMessageComparator(0)
 
 	gc.leaderMsgStore = msgstore.NewMessageStoreExpirable(pol, msgstore.Noop, ttl, nil, nil, nil)
+	gc.archivedBlockfileMsgStore = msgstore.NewMessageStoreExpirable(pol, msgstore.Noop, ttl, nil, nil, nil)
 
 	gc.ConfigureChannel(joinMsg)
 
@@ -312,6 +314,7 @@ func (gc *gossipChannel) Stop() {
 	gc.stateInfoPublishScheduler.Stop()
 	gc.stateInfoRequestScheduler.Stop()
 	gc.leaderMsgStore.Stop()
+	gc.archivedBlockfileMsgStore.Stop()
 	gc.stateInfoMsgStore.Stop()
 	gc.blockMsgStore.Stop()
 }
@@ -711,6 +714,14 @@ func (gc *gossipChannel) HandleMessage(msg protoext.ReceivedMessage) {
 		}
 		// Handling leadership message
 		added := gc.leaderMsgStore.Add(m)
+		if added {
+			gc.DeMultiplex(m)
+		}
+	}
+
+	if m.IsArchivedBlockfileMsg() {
+		// Handling ArchivedBlockfile message
+		added := gc.archivedBlockfileMsgStore.Add(m)
 		if added {
 			gc.DeMultiplex(m)
 		}

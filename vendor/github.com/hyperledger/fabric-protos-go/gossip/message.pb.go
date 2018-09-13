@@ -6,12 +6,13 @@ package gossip
 import (
 	context "context"
 	fmt "fmt"
+	math "math"
+
 	proto "github.com/golang/protobuf/proto"
 	peer "github.com/hyperledger/fabric-protos-go/peer"
 	grpc "google.golang.org/grpc"
 	codes "google.golang.org/grpc/codes"
 	status "google.golang.org/grpc/status"
-	math "math"
 )
 
 // Reference imports to suppress errors if they are not otherwise used.
@@ -303,6 +304,7 @@ type GossipMessage struct {
 	//	*GossipMessage_PrivateReq
 	//	*GossipMessage_PrivateRes
 	//	*GossipMessage_PrivateData
+	//	*GossipMessage_ArchivedBlockfile
 	Content              isGossipMessage_Content `protobuf_oneof:"content"`
 	XXX_NoUnkeyedLiteral struct{}                `json:"-"`
 	XXX_unrecognized     []byte                  `json:"-"`
@@ -443,6 +445,10 @@ type GossipMessage_PrivateData struct {
 	PrivateData *PrivateDataMessage `protobuf:"bytes,25,opt,name=private_data,json=privateData,proto3,oneof"`
 }
 
+type GossipMessage_ArchivedBlockfile struct {
+	ArchivedBlockfile *ArchivedBlockfile `protobuf:"bytes,26,opt,name=archived_blockfile,json=archivedBlockfile,proto3,oneof"`
+}
+
 func (*GossipMessage_AliveMsg) isGossipMessage_Content() {}
 
 func (*GossipMessage_MemReq) isGossipMessage_Content() {}
@@ -484,6 +490,8 @@ func (*GossipMessage_PrivateReq) isGossipMessage_Content() {}
 func (*GossipMessage_PrivateRes) isGossipMessage_Content() {}
 
 func (*GossipMessage_PrivateData) isGossipMessage_Content() {}
+
+func (*GossipMessage_ArchivedBlockfile) isGossipMessage_Content() {}
 
 func (m *GossipMessage) GetContent() isGossipMessage_Content {
 	if m != nil {
@@ -663,6 +671,7 @@ func (*GossipMessage) XXX_OneofWrappers() []interface{} {
 		(*GossipMessage_PrivateReq)(nil),
 		(*GossipMessage_PrivateRes)(nil),
 		(*GossipMessage_PrivateData)(nil),
+		(*GossipMessage_ArchivedBlockfile)(nil),
 	}
 }
 
@@ -2222,6 +2231,47 @@ func (m *Chaincode) GetMetadata() []byte {
 		return m.Metadata
 	}
 	return nil
+}
+
+// ArchivedBlockfile is sent to inform peers that a
+// blockfile has been archived and can now be removed
+// from the local filesystem
+type ArchivedBlockfile struct {
+	BlockfileNo          uint64   `protobuf:"varint,1,opt,name=blockfile_no,json=blockfileNo,proto3" json:"blockfile_no,omitempty"`
+	XXX_NoUnkeyedLiteral struct{} `json:"-"`
+	XXX_unrecognized     []byte   `json:"-"`
+	XXX_sizecache        int32    `json:"-"`
+}
+
+func (m *ArchivedBlockfile) Reset()         { *m = ArchivedBlockfile{} }
+func (m *ArchivedBlockfile) String() string { return proto.CompactTextString(m) }
+func (*ArchivedBlockfile) ProtoMessage()    {}
+func (*ArchivedBlockfile) Descriptor() ([]byte, []int) {
+	return fileDescriptor_message_54ef24e3a90750d7, []int{34}
+}
+func (m *ArchivedBlockfile) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_ArchivedBlockfile.Unmarshal(m, b)
+}
+func (m *ArchivedBlockfile) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_ArchivedBlockfile.Marshal(b, m, deterministic)
+}
+func (dst *ArchivedBlockfile) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_ArchivedBlockfile.Merge(dst, src)
+}
+func (m *ArchivedBlockfile) XXX_Size() int {
+	return xxx_messageInfo_ArchivedBlockfile.Size(m)
+}
+func (m *ArchivedBlockfile) XXX_DiscardUnknown() {
+	xxx_messageInfo_ArchivedBlockfile.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_ArchivedBlockfile proto.InternalMessageInfo
+
+func (m *ArchivedBlockfile) GetBlockfileNo() uint64 {
+	if m != nil {
+		return m.BlockfileNo
+	}
+	return 0
 }
 
 func init() {

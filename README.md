@@ -1,105 +1,26 @@
-# Hyperledger Fabric [![join the chat][rocketchat-image]][rocketchat-url]
+# Lab Name
+Hyperledger Fabric Block Archiving
 
-[rocketchat-url]: https://chat.hyperledger.org/channel/fabric
-[rocketchat-image]: https://open.rocket.chat/images/join-chat.svg
+# Short Description
 
-[![Build Status](https://jenkins.hyperledger.org/buildStatus/icon?job=fabric-merge-x86_64)](https://jenkins.hyperledger.org/view/fabric/job/fabric-merge-x86_64/)
-[![CII Best Practices](https://bestpractices.coreinfrastructure.org/projects/955/badge)](https://bestpractices.coreinfrastructure.org/projects/955)
-[![Go Report Card](https://goreportcard.com/badge/github.com/hyperledger/fabric)](https://goreportcard.com/report/github.com/hyperledger/fabric)
-[![GoDoc](https://godoc.org/github.com/hyperledger/fabric?status.svg)](https://godoc.org/github.com/hyperledger/fabric)
-[![Documentation Status](https://readthedocs.org/projects/hyperledger-fabric/badge/?version=master)](http://hyperledger-fabric.readthedocs.io/en/master/?badge=master)
+* Reduce the total amount of storage space required for an organisation to operate a Hyperledger fabric network by archiving block data into repository.
+* For organisations to operate a Hyperledger fabric network with low resourced nodes such as a IoT edge devices.
 
-This project is an _Active_ Hyperledger project. For more information on the history of this project see the [Fabric wiki page](https://wiki.hyperledger.org/display/fabric). Information on what _Active_ entails can be found in
-the [Hyperledger Project Lifecycle document](https://wiki.hyperledger.org/display/HYP/Project+Lifecycle).
-Hyperledger Fabric is a platform for distributed ledger solutions, underpinned
-by a modular architecture delivering high degrees of confidentiality,
-resiliency, flexibility and scalability. It is designed to support pluggable
-implementations of different components, and accommodate the complexity and
-intricacies that exist across the economic ecosystem.
+# Scope of Lab
 
-Hyperledger Fabric delivers a uniquely elastic and extensible architecture,
-distinguishing it from alternative blockchain solutions. Planning for the
-future of enterprise blockchain requires building on top of a fully-vetted,
-open source architecture; Hyperledger Fabric is your starting point.
+This feature is aimed primarily at Hyperledger Fabric network administrators who have been running their own network and have resource shortage problems. When considering the long term operation of service which makes use of Hyperledger Fabric as an underlying blockchain, Scalability is one of the most important factors for future business expansion while resource planning is critical in determining future capability. Calculating the required disk space is one of the key challenges faced by our partners. In the Blockchain community, there are a lot options to address this issue. In Bitcoin, Lightweight Node has already been introduced as an option for non-miners which download just the block headers so as to reduce disk space usage. Ethereum, the community has defined the Light client protocol for almost the same purpose as bitcoin's one. While in Hyperledger Fabric, there is a feature request for this issue as well. Unless this kind of feature is available, the business stakeholders will not be able to start their service in production on a large scale. This is one of the main reasons why most of the business stakeholders have considered making use of Blockchain as a Service (BaaS) managed by the cloud service providers despite it incurring more costs.
 
-## Releases
+In our proposal, Hyperledger Fabric Block Archiving, data is handled in the unit of a certain amount of chunk of blocks called blockfiles. By default in Hyperledger Fabric, each peer node in an organisation needs to store block data into the blockfiles one by one from the genesis block to the latest one. So they have the exact same series of blockfiles through all peer nodes which are connecting to the same channel. BlockVault uses this characteristic to realize our concept. This functionality makes redundant the notion that every peer node is required to retain all blockfiles in the local file system indefinitely. And more importantly this preserves the Blockchain characteristics even after archiving the blockfiles. By enabling the block archiving feature not all peer nodes need to keep maintaining all the blockfiles. Simply, even devices which don't have much disk space could be a peer node of the blockchain network. For example, in an IoT system, you would be able to construct a blockchain network using edge devices with attached sensors in order to store sensor data and track information. This feature will make the target areas of the blockchain system broader than ever. Therefore BlockVault provides new possibilities for Blockchain applications
 
-- [v2.0.0-beta - December 12, 2019](https://github.com/hyperledger/fabric/releases/tag/v2.0.0-beta)
-- [v2.0.0-alpha - April 9, 2019](https://github.com/hyperledger/fabric/releases/tag/v2.0.0-alpha)
-- [v1.4.4 - November 14, 2019](https://github.com/hyperledger/fabric/releases/tag/v1.4.4)
-- [v1.4.3 - August 26, 2019](https://github.com/hyperledger/fabric/releases/tag/v1.4.3)
-- [v1.4.2 - July 17, 2019](https://github.com/hyperledger/fabric/releases/tag/v1.4.2)
-- [v1.4.1 - April 11, 2019](https://github.com/hyperledger/fabric/releases/tag/v1.4.1)
-- [v1.4.1-rc1 - March 29, 2019](https://github.com/hyperledger/fabric/releases/tag/v1.4.1-rc1)
-- [v1.4.0 - January 9, 2019](https://github.com/hyperledger/fabric/releases/tag/v1.4.0)
-- [v1.4.0-rc2 - December 20, 2018](https://github.com/hyperledger/fabric/releases/tag/v1.4.0-rc2)
-- [v1.4.0-rc1 - December 10, 2018](https://github.com/hyperledger/fabric/releases/tag/v1.4.0-rc1)
-- [v1.3.0 - October 10, 2018](https://github.com/hyperledger/fabric/releases/tag/v1.3.0)
-- [v1.3.0-rc1 - September 24, 2018](https://github.com/hyperledger/fabric/releases/tag/v1.3.0-rc1)
-- [v1.2.0 - July 3, 2018](https://github.com/hyperledger/fabric/releases/tag/v1.2.0)
-- [v1.2.0-rc1 - June 22, 2018](https://github.com/hyperledger/fabric/releases/tag/v1.2.0-rc1)
-- [v1.1.0 - March 15, 2018](https://github.com/hyperledger/fabric/releases/tag/v1.1.0)
-- [v1.1.0-rc1 - March 1, 2018](https://github.com/hyperledger/fabric/releases/tag/v1.1.0-rc1)
-- [v1.1.0-alpha - January 25, 2018](https://github.com/hyperledger/fabric/releases/tag/v1.1.0-alpha)
-- [v1.0.5 - December 6, 2017](https://github.com/hyperledger/fabric/releases/tag/v1.0.5)
-- [v1.1.0-preview - November 1, 2017](https://github.com/hyperledger/fabric/releases/tag/v1.1.0-preview)
-- [v1.0.4 - October 31, 2017](https://github.com/hyperledger/fabric/releases/tag/v1.0.4)
-- [v1.0.3 - October 3, 2017](https://github.com/hyperledger/fabric/releases/tag/v1.0.3)
-- [v1.0.2 - September 10, 2017](https://github.com/hyperledger/fabric/releases/tag/v1.0.2)
-- [v1.0.1 - August 10, 2017](https://github.com/hyperledger/fabric/releases/tag/v1.0.1)
-- [v1.0.0 - July 11, 2017](https://github.com/hyperledger/fabric/releases/tag/v1.0.0)
-- [v1.0.0-rc1 - June 23, 2017](https://github.com/hyperledger/fabric/releases/tag/v1.0.0-rc1)
-- [v1.0.0-beta - June 8, 2017](https://github.com/hyperledger/fabric/releases/tag/v1.0.0-beta)
-- [v1.0.0-alpha2 - May 14, 2017](https://github.com/hyperledger/fabric/releases/tag/v1.0.0-alpha2)
-- [v1.0.0-alpha - March 16, 2017](https://github.com/hyperledger/fabric/releases/tag/v1.0.0-alpha)
-- [v0.6.1-preview - October 15, 2016](https://github.com/hyperledger/fabric/releases/tag/v0.6.0-preview)
-- [v0.6.0-preview - September 16, 2016](https://github.com/hyperledger/fabric/releases/tag/v0.6.0-preview)
 
-## Release Roadmap
+# Initial Committers
+- [anand-jpa](https://github.com/anand-jpa) - Anand Konchery
+- [chrism28](https://github.com/chrism28) - Chris Murphy
+- [nekia](https://github.com/nekia) - Atsushi Neki
 
-Please visit the [Hyperledger Fabric wiki](https://wiki.hyperledger.org/display/fabric/Hyperledger+Fabric+Roadmap) for our release roadmap. We plan on a quarterly release cadence following the v1.1.0 release, delivering on a scoped set of themes and select features. Unless specified otherwise, all releases will be upgradable from the prior minor release.
+# Sponsors
+- https://github.com/hartm - Member of Hyperledger TSC
 
-## Documentation, Getting Started and Developer Guides
+# Pre-existing Repository
+- https://github.com/nekia/fabric-block-archiving
 
-Please visit our
-online documentation for
-information on getting started using and developing with the fabric, SDK and chaincode:
-- [v1.4](http://hyperledger-fabric.readthedocs.io/en/release-1.4/)
-- [v1.3](http://hyperledger-fabric.readthedocs.io/en/release-1.3/)
-- [v1.2](http://hyperledger-fabric.readthedocs.io/en/release-1.2/)
-- [v1.1](http://hyperledger-fabric.readthedocs.io/en/release-1.1/)
-- [v1.0](http://hyperledger-fabric.readthedocs.io/en/release-1.0/)
-- [master branch (development)](http://hyperledger-fabric.readthedocs.io/en/master/)
-
-It's recommended for first-time users to begin by going through the Getting Started section of the documentation in order to gain familiarity with the Hyperledger Fabric components and the basic transaction flow.
-
-## Contributing
-
-We welcome contributions to the Hyperledger Fabric project in many forms.
-There’s always plenty to do! Check [the documentation on how to contribute to this project](http://hyperledger-fabric.readthedocs.io/en/latest/CONTRIBUTING.html)
-for the full details.
-
-## Testing
-Check [the documentation](testingInfo.rst) for information on the testing structure that the project follows.
-
-## Community
-
-[Hyperledger Community](https://www.hyperledger.org/community)
-
-[Hyperledger mailing lists and archives](http://lists.hyperledger.org/)
-
-[Hyperledger Chat](http://chat.hyperledger.org/channel/fabric)
-
-[Hyperledger Fabric Issue Tracking (JIRA)](https://jira.hyperledger.org/secure/Dashboard.jspa?selectPageId=10104)
-
-[Hyperledger Fabric Wiki](https://wiki.hyperledger.org/display/Fabric)
-
-[Hyperledger Wiki](https://wiki.hyperledger.org/)
-
-[Hyperledger Code of Conduct](https://wiki.hyperledger.org/display/HYP/Hyperledger+Code+of+Conduct)
-
-[Community Calendar](https://wiki.hyperledger.org/display/HYP/Calendar+of+Public+Meetings)
-
-## License <a name="license"></a>
-
-Hyperledger Project source code files are made available under the Apache License, Version 2.0 (Apache-2.0), located in the [LICENSE](LICENSE) file. Hyperledger Project documentation files are made available under the Creative Commons Attribution 4.0 International License (CC-BY-4.0), available at http://creativecommons.org/licenses/by/4.0/.

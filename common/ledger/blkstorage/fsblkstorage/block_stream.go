@@ -10,10 +10,16 @@ import (
 	"bufio"
 	"fmt"
 	"io"
+	"net"
 	"os"
+	"path/filepath"
+
+	"github.com/hyperledger/fabric/core/ledger/ledgerconfig"
 
 	"github.com/golang/protobuf/proto"
 	"github.com/pkg/errors"
+	"github.com/pkg/sftp"
+	"golang.org/x/crypto/ssh"
 )
 
 // ErrUnexpectedEndOfBlockfile error used to indicate an unexpected end of a file segment
@@ -26,6 +32,7 @@ var ErrUnexpectedEndOfBlockfile = errors.New("unexpected end of blockfile")
 type blockfileStream struct {
 	fileNum       int
 	file          *os.File
+	sftpConnInfo  *sftpConnInfo
 	reader        *bufio.Reader
 	currentOffset int64
 }
@@ -48,6 +55,50 @@ type blockPlacementInfo struct {
 	blockBytesOffset int64
 }
 
+type sftpConnInfo struct {
+	file   *sftp.File
+	client *ssh.Client
+}
+
+func OpenFileThroughSFTP(path string) (*sftpConnInfo, error) {
+
+	logger.Info("OpenFileThroughSFTP")
+	config := &ssh.ClientConfig{
+		User: "root",
+		HostKeyCallback: func(hostname string, remote net.Addr, key ssh.PublicKey) error {
+			return nil
+		},
+		Auth: []ssh.AuthMethod{
+			ssh.Password("blkstore"),
+		},
+	}
+	config.SetDefaults()
+	sshConn, err := ssh.Dial("tcp", ledgerconfig.GetBlockVaultURL(), config)
+	if err != nil {
+		return nil, err
+	}
+	// defer sshConn.Close()
+
+	client, err := sftp.NewClient(sshConn)
+	if err != nil {
+		return nil, err
+	}
+	// defer client.Close()
+
+	dstFilePath := filepath.Join(ledgerconfig.GetBlockVaultDir(), path)
+	dstFile, err := client.Open(dstFilePath)
+	if err != nil {
+		return nil, err
+	}
+	// defer dstFile.Close()
+
+	return &sftpConnInfo{dstFile, sshConn}, nil
+}
+
+func fileSeek(s io.Seeker, startOffset int64) (int64, error) {
+	return s.Seek(startOffset, 0)
+}
+
 ///////////////////////////////////
 // blockfileStream functions
 ////////////////////////////////////
@@ -55,19 +106,35 @@ func newBlockfileStream(rootDir string, fileNum int, startOffset int64) (*blockf
 	filePath := deriveBlockfilePath(rootDir, fileNum)
 	logger.Debugf("newBlockfileStream(): filePath=[%s], startOffset=[%d]", filePath, startOffset)
 	var file *os.File
+	var connInfo *sftpConnInfo
 	var err error
 	if file, err = os.OpenFile(filePath, os.O_RDONLY, 0600); err != nil {
-		return nil, errors.Wrapf(err, "error opening block file %s", filePath)
+		if connInfo, err = OpenFileThroughSFTP(filePath); err != nil {
+			logger.Error(err)
+			return nil, errors.Wrapf(err, "error opening block file %s", filePath)
+		}
 	}
+
 	var newPosition int64
-	if newPosition, err = file.Seek(startOffset, 0); err != nil {
+	var seeker io.Seeker
+	if file != nil {
+		seeker = file
+	} else {
+		seeker = connInfo.file
+	}
+	if newPosition, err = fileSeek(seeker, startOffset); err != nil {
 		return nil, errors.Wrapf(err, "error seeking block file [%s] to startOffset [%d]", filePath, startOffset)
 	}
 	if newPosition != startOffset {
 		panic(fmt.Sprintf("Could not seek block file [%s] to startOffset [%d]. New position = [%d]",
 			filePath, startOffset, newPosition))
 	}
-	s := &blockfileStream{fileNum, file, bufio.NewReader(file), startOffset}
+	var s *blockfileStream
+	if file != nil {
+		s = &blockfileStream{fileNum, file, nil, bufio.NewReader(file), startOffset}
+	} else {
+		s = &blockfileStream{fileNum, nil, connInfo, bufio.NewReader(connInfo.file), startOffset}
+	}
 	return s, nil
 }
 
@@ -86,7 +153,13 @@ func (s *blockfileStream) nextBlockBytesAndPlacementInfo() ([]byte, *blockPlacem
 	var fileInfo os.FileInfo
 	moreContentAvailable := true
 
-	if fileInfo, err = s.file.Stat(); err != nil {
+	if s.sftpConnInfo != nil {
+		// Access the blockfile via blockVault
+		fileInfo, err = s.sftpConnInfo.file.Stat()
+	} else {
+		fileInfo, err = s.file.Stat()
+	}
+	if err != nil {
 		return nil, nil, errors.Wrapf(err, "error getting block file stat")
 	}
 	if s.currentOffset == fileInfo.Size() {
@@ -139,7 +212,16 @@ func (s *blockfileStream) nextBlockBytesAndPlacementInfo() ([]byte, *blockPlacem
 }
 
 func (s *blockfileStream) close() error {
-	return errors.WithStack(s.file.Close())
+	if s.sftpConnInfo != nil {
+		// Close the blockVault connection
+		if err := errors.WithStack(s.sftpConnInfo.file.Close()); err != nil {
+			logger.Error(err.Error())
+			return err
+		}
+		return errors.WithStack(s.sftpConnInfo.client.Close())
+	} else {
+		return errors.WithStack(s.file.Close())
+	}
 }
 
 ///////////////////////////////////

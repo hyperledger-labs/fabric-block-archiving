@@ -28,10 +28,11 @@ import (
 
 // fsBlockStore - filesystem based implementation for `BlockStore`
 type fsBlockStore struct {
-	id      string
-	conf    *Conf
-	fileMgr *blockfileMgr
-	stats   *ledgerStats
+	id       string
+	conf     *Conf
+	fileMgr  *blockfileMgr
+	stats    *ledgerStats
+	archiver *blockfileArchiver
 }
 
 // NewFsBlockStore constructs a `FsBlockStore`
@@ -44,7 +45,7 @@ func newFsBlockStore(id string, conf *Conf, indexConfig *blkstorage.IndexConfig,
 	info := fileMgr.getBlockchainInfo()
 	ledgerStats.updateBlockchainHeight(info.Height)
 
-	return &fsBlockStore{id, conf, fileMgr, ledgerStats}
+	return &fsBlockStore{id, conf, fileMgr, ledgerStats, newBlockfileArchiver(id, fileMgr)}
 }
 
 // AddBlock adds a new block

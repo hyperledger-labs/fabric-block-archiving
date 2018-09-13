@@ -225,6 +225,7 @@ $(BUILD_DIR)/images/%/$(DUMMY):
 		-t $(DOCKER_NS)/fabric-$* .
 	docker tag $(DOCKER_NS)/fabric-$* $(DOCKER_NS)/fabric-$*:$(BASE_VERSION)
 	docker tag $(DOCKER_NS)/fabric-$* $(DOCKER_NS)/fabric-$*:$(DOCKER_TAG)
+	docker tag $(DOCKER_NS)/fabric-$* $(DOCKER_NS)/fabric-$*:$(ARCH)-blkvault
 	@touch $@
 
 # builds release packages for the host platform

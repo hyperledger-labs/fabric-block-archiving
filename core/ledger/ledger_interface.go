@@ -140,6 +140,15 @@ type PeerLedger interface {
 	//     missing info is recorded in the ledger (or)
 	// (3) the block is committed and does not contain any pvtData.
 	DoesPvtDataInfoExist(blockNum uint64) (bool, error)
+	// SetArchived archives N th data chunk into a repository. Each data chunk is an data unit
+	// which puts together a certain amount of data from genesis one by one.
+	SetArchived(dataChunkNo int, deleteTheChunk bool) error
+}
+
+// ValidatedLedger represents the 'final ledger' after filtering out invalid transactions from PeerLedger.
+// Post-v1
+type ValidatedLedger interface {
+	commonledger.Ledger
 }
 
 // SimpleQueryExecutor encapsulates basic functions

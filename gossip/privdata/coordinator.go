@@ -66,6 +66,9 @@ type Coordinator interface {
 	// Get recent block sequence number
 	LedgerHeight() (uint64, error)
 
+	// Record a blockfile as being archived
+	SetArchived(fileNum int, deleteTheFile bool) error
+
 	// Close coordinator, shuts down coordinator service
 	Close()
 }
@@ -147,6 +150,7 @@ func NewCoordinator(mspID string, support Support, store *transientstore.Store, 
 
 // StoreBlock stores block with private data into the ledger
 func (c *coordinator) StoreBlock(block *common.Block, privateDataSets util.PvtDataCollections) error {
+
 	if block.Data == nil {
 		return errors.New("Block data is empty")
 	}

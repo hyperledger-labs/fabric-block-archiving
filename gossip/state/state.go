@@ -197,7 +197,7 @@ func NewGossipStateProvider(
 
 	gossipChan, _ := services.Accept(func(message interface{}) bool {
 		// Get only data messages
-		return protoext.IsDataMsg(message.(*proto.GossipMessage)) &&
+		return message.(*proto.GossipMessage).IsDataMsg() &&
 			bytes.Equal(message.(*proto.GossipMessage).Channel, []byte(chainID))
 	}, false)
 

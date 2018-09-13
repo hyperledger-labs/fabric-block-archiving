@@ -25,6 +25,7 @@ const (
 	ServiceLogger     = "gossip.service"
 	StateLogger       = "gossip.state"
 	PrivateDataLogger = "gossip.privdata"
+	ArchiveLogger     = "gossip.archiver"
 )
 
 var loggers = make(map[string]Logger)

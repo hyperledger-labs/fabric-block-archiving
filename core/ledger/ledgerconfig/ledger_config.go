@@ -42,6 +42,17 @@ const confWarmIndexesAfterNBlocks = "ledger.state.couchDBConfig.warmIndexesAfter
 var confCollElgProcMaxDbBatchSize = &conf{"ledger.pvtdataStore.collElgProcMaxDbBatchSize", 5000}
 var confCollElgProcDbBatchesInterval = &conf{"ledger.pvtdataStore.collElgProcDbBatchesInterval", 1000}
 
+const confMaxBlockfileSize = "ledger.maxBlockfileSize"
+const confBlockVaultURL = "ledger.blockVault.url"
+const confBlockVaultDir = "ledger.blockVault.dir"
+const confArchiverEach = "peer.archiver.each"
+const confArchiverKeep = "peer.archiver.keep"
+
+const defaultBlockVaultURL = "ledger-bank:222"
+const defaultBlockVaultDir = "/tmp"
+const defaultArchiverEach = 30
+const defaultArchiverKeep = 10
+
 // GetRootPath returns the filesystem path.
 // All ledger related contents are expected to be stored under this path
 func GetRootPath() string {
@@ -90,7 +101,12 @@ func GetCouchdbRedologsPath() string {
 
 // GetMaxBlockfileSize returns maximum size of the block file
 func GetMaxBlockfileSize() int {
-	return 64 * 1024 * 1024
+	maxBlockfileSize := viper.GetInt(confMaxBlockfileSize)
+	// if maxBlockfileSize was unset, default to 64MB
+	if !viper.IsSet(confMaxBlockfileSize) {
+		maxBlockfileSize = 64 * 1024 * 1024
+	}
+	return maxBlockfileSize
 }
 
 // GetTotalQueryLimit exposes the totalLimit variable
@@ -194,4 +210,35 @@ func GetWarmIndexesAfterNBlocks() int {
 type conf struct {
 	Name       string
 	DefaultVal int
+}
+
+//GetBlockVaultURL exposes the BlockVaultURL variable
+func GetBlockVaultURL() string {
+	url := viper.GetString(confBlockVaultURL)
+	if !viper.IsSet(confBlockVaultURL) {
+		url = defaultBlockVaultURL
+	}
+	return url
+}
+
+//GetBlockVaultDir exposes the BlockVaultDir variable
+func GetBlockVaultDir() string {
+	dir := viper.GetString(confBlockVaultDir)
+	if !viper.IsSet(confBlockVaultDir) {
+		dir = defaultBlockVaultDir
+	}
+	return dir
+}
+
+//GetArchivingParameters exposes parameters related to archiving/discarding
+func GetArchivingParameters() (int, int) {
+	numArchiving := viper.GetInt(confArchiverEach)
+	if !viper.IsSet(confArchiverEach) {
+		numArchiving = defaultArchiverEach
+	}
+	numKeeping := viper.GetInt(confArchiverKeep)
+	if !viper.IsSet(confArchiverKeep) {
+		numKeeping = defaultArchiverKeep
+	}
+	return numArchiving, numKeeping
 }

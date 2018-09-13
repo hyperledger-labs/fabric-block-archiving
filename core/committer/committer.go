@@ -60,6 +60,9 @@ type Committer interface {
 	// GetMissingPvtDataTracker return the MissingPvtDataTracker
 	GetMissingPvtDataTracker() (ledger.MissingPvtDataTracker, error)
 
+	// TODO: Does this really belong here?
+	SetArchived(blockFileNo int, deleteTheFile bool) error
+
 	// Closes committing service
 	Close()
 }

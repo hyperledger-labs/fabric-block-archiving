@@ -17,6 +17,7 @@ import (
 	"github.com/golang/protobuf/proto"
 	"github.com/hyperledger/fabric/common/flogging"
 	"github.com/hyperledger/fabric/common/ledger/blkstorage"
+	"github.com/hyperledger/fabric/common/ledger/blockarchive"
 	"github.com/hyperledger/fabric/common/ledger/util"
 	"github.com/hyperledger/fabric/common/ledger/util/leveldbhelper"
 	"github.com/hyperledger/fabric/protos/common"
@@ -36,6 +37,7 @@ var (
 )
 
 type blockfileMgr struct {
+	chainID           string
 	rootDir           string
 	conf              *Conf
 	db                *leveldbhelper.DBHandle
@@ -44,6 +46,7 @@ type blockfileMgr struct {
 	cpInfoCond        *sync.Cond
 	currentFileWriter *blockfileWriter
 	bcInfo            atomic.Value
+	archiverChan      chan blockarchive.ArchiverMessage
 }
 
 /*
@@ -97,6 +100,7 @@ func newBlockfileMgr(id string, conf *Conf, indexConfig *blkstorage.IndexConfig,
 	}
 	// Instantiate the manager, i.e. blockFileMgr structure
 	mgr := &blockfileMgr{rootDir: rootDir, conf: conf, db: indexStore}
+	mgr.chainID = id
 
 	// cp = checkpointInfo, retrieve from the database the file suffix or number of where blocks were stored.
 	// It also retrieves the current size of that file and the last block number that was written to that file.
@@ -234,6 +238,7 @@ func (mgr *blockfileMgr) moveToNextFile() {
 		panic(fmt.Sprintf("Could not save next block file info to db: %s", err))
 	}
 	mgr.currentFileWriter = nextFileWriter
+	mgr.notifyArchiver(mgr.cpInfo.latestFileChunkSuffixNum)
 	mgr.updateCheckpoint(cpInfo)
 }
 

@@ -60,6 +60,7 @@ import (
 	"github.com/hyperledger/fabric/core/operations"
 	"github.com/hyperledger/fabric/core/peer"
 	"github.com/hyperledger/fabric/core/scc"
+	"github.com/hyperledger/fabric/core/scc/ascc"
 	"github.com/hyperledger/fabric/core/scc/cscc"
 	"github.com/hyperledger/fabric/core/scc/lscc"
 	"github.com/hyperledger/fabric/core/scc/qscc"
@@ -398,10 +399,11 @@ func serve(args []string) error {
 	if maxConcurrency := viper.GetInt("peer.limits.concurrency.qscc"); maxConcurrency != 0 {
 		qsccInst = scc.Throttle(maxConcurrency, qsccInst)
 	}
+	asccInst := ascc.New(opsSystem.Provider)
 
 	//Now that chaincode is initialized, register all system chaincodes.
 	sccs := scc.CreatePluginSysCCs(sccp)
-	for _, cc := range append([]scc.SelfDescribingSysCC{lsccInst, csccInst, qsccInst, lifecycleSCC}, sccs...) {
+	for _, cc := range append([]scc.SelfDescribingSysCC{lsccInst, csccInst, qsccInst, lifecycleSCC, asccInst}, sccs...) {
 		sccp.RegisterSysCC(cc)
 	}
 	pb.RegisterChaincodeSupportServer(ccSrv.Server(), ccSupSrv)

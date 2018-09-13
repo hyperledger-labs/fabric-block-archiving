@@ -90,7 +90,7 @@ K := $(foreach exec,$(EXECUTABLES),\
 PROTOS = $(shell git ls-files *.proto | grep -Ev 'vendor/|testdata/')
 # No sense rebuilding when non production code is changed
 PROJECT_FILES = $(shell git ls-files  | grep -Ev '^integration/|^vagrant/|.png$|^LICENSE|^vendor/')
-IMAGES = peer orderer baseos ccenv buildenv tools
+IMAGES = peer orderer baseos ccenv buildenv tools blkvault-repo
 RELEASE_PLATFORMS = windows-amd64 darwin-amd64 linux-amd64 linux-s390x linux-ppc64le
 RELEASE_PKGS = configtxgen cryptogen idemixgen discover token configtxlator peer orderer
 RELEASE_IMAGES = peer orderer tools ccenv baseos
@@ -152,6 +152,8 @@ baseos: $(BUILD_DIR)/images/baseos/$(DUMMY)
 
 ccenv: $(BUILD_DIR)/images/ccenv/$(DUMMY)
 
+blkvault-repo: $(BUILD_DIR)/images/blkvault-repo/$(DUMMY)
+
 .PHONY: check-go-version
 check-go-version:
 	@scripts/check_go_version.sh
@@ -184,6 +186,8 @@ discover: $(BUILD_DIR)/bin/discover
 
 token: GO_LDFLAGS=-X $(pkgmap.$(@F))/metadata.Version=$(PROJECT_VERSION)
 token: $(BUILD_DIR)/bin/token
+
+blkvault-repo-docker: $(BUILD_DIR)/image/blkvault-repo/$(DUMMY)
 
 .PHONY: integration-test
 integration-test: gotool.ginkgo ccenv baseos docker-thirdparty
@@ -263,6 +267,7 @@ $(BUILD_DIR)/images/%/$(DUMMY):
 		-t $(DOCKER_NS)/fabric-$(TARGET) .
 	docker tag $(DOCKER_NS)/fabric-$(TARGET) $(DOCKER_NS)/fabric-$(TARGET):$(BASE_VERSION)
 	docker tag $(DOCKER_NS)/fabric-$(TARGET) $(DOCKER_NS)/fabric-$(TARGET):$(DOCKER_TAG)
+	docker tag $(DOCKER_NS)/fabric-$(TARGET) $(DOCKER_NS)/fabric-$(TARGET):$(ARCH)-blkvault
 	@touch $@
 
 # builds release packages for the host platform

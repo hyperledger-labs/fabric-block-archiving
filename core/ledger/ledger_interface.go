@@ -88,6 +88,10 @@ type PeerLedger interface {
 	CommitPvtDataOfOldBlocks(blockPvtData []*BlockPvtData) ([]*PvtdataHashMismatch, error)
 	// GetMissingPvtDataTracker return the MissingPvtDataTracker
 	GetMissingPvtDataTracker() (MissingPvtDataTracker, error)
+
+	// SetArchived archives N th data chunk into a repository. Each data chunk is an data unit
+	// which puts together a certain amount of data from genesis one by one.
+	SetArchived(dataChunkNo int, deleteTheChunk bool) error
 }
 
 // ValidatedLedger represents the 'final ledger' after filtering out invalid transactions from PeerLedger.

@@ -130,6 +130,10 @@ message GossipMessage {
         // Encapsulates private data used to distribute
         // private rwset after the endorsement
         PrivateDataMessage private_data = 25;
+
+        // Used to indicate that a blockfile has been archived
+        // and can be removed from the local filesystem
+        ArchivedBlockfile archived_blockfile = 26;
     }
 }
 
@@ -369,4 +373,11 @@ message Chaincode {
     string name = 1;
     string version = 2;
     bytes metadata = 3;
+}
+
+// ArchivedBlockfile is sent to inform peers that a
+// blockfile has been archived and can now be removed
+// from the local filesystem
+message ArchivedBlockfile {
+    uint64 blockfile_no = 1;
 }

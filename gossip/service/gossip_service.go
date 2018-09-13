@@ -16,6 +16,7 @@ import (
 	deliverclient "github.com/hyperledger/fabric/core/deliverservice"
 	"github.com/hyperledger/fabric/core/deliverservice/blocksprovider"
 	"github.com/hyperledger/fabric/gossip/api"
+	"github.com/hyperledger/fabric/gossip/archive"
 	gossipCommon "github.com/hyperledger/fabric/gossip/common"
 	"github.com/hyperledger/fabric/gossip/election"
 	"github.com/hyperledger/fabric/gossip/gossip"
@@ -95,6 +96,7 @@ type gossipServiceImpl struct {
 	chains          map[string]state.GossipStateProvider
 	leaderElection  map[string]election.LeaderElectionService
 	deliveryService map[string]deliverclient.DeliverService
+	archiveService  map[string]archive.ArchiveService
 	deliveryFactory DeliveryServiceFactory
 	lock            sync.RWMutex
 	mcs             api.MessageCryptoService
@@ -193,6 +195,7 @@ func InitGossipServiceCustomDeliveryFactory(
 			privateHandlers: make(map[string]privateHandler),
 			chains:          make(map[string]state.GossipStateProvider),
 			leaderElection:  make(map[string]election.LeaderElectionService),
+			archiveService:  make(map[string]archive.ArchiveService),
 			deliveryService: make(map[string]deliverclient.DeliverService),
 			deliveryFactory: factory,
 			peerIdentity:    serializedIdentity,
@@ -345,6 +348,9 @@ func (g *gossipServiceImpl) InitializeChannel(chainID string, endpoints []string
 	} else {
 		logger.Warning("Delivery client is down won't be able to pull blocks for chain", chainID)
 	}
+
+	// Start the archive service
+	g.archiveService[chainID] = g.newArchiveComponent(chainID, coordinator)
 }
 
 func (g *gossipServiceImpl) createSelfSignedData() protoutil.SignedData {
@@ -436,6 +442,10 @@ func (g *gossipServiceImpl) newLeaderElectionComponent(chainID string, callback 
 		LeaderElectionDuration:   util.GetDurationOrDefault("peer.gossip.election.leaderElectionDuration", election.DefLeaderElectionDuration),
 	}
 	return election.NewLeaderElectionService(adapter, string(PKIid), callback, config)
+}
+
+func (g *gossipServiceImpl) newArchiveComponent(chainID string, ledger privdata2.Coordinator) archive.ArchiveService {
+	return archive.NewArchiveService(g, gossipCommon.ChainID(chainID), ledger)
 }
 
 func (g *gossipServiceImpl) amIinChannel(myOrg string, config Config) bool {

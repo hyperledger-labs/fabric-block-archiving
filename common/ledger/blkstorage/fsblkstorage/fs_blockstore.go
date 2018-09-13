@@ -26,15 +26,17 @@ import (
 
 // fsBlockStore - filesystem based implementation for `BlockStore`
 type fsBlockStore struct {
-	id      string
-	conf    *Conf
-	fileMgr *blockfileMgr
+	id       string
+	conf     *Conf
+	fileMgr  *blockfileMgr
+	archiver *blockfileArchiver
 }
 
 // NewFsBlockStore constructs a `FsBlockStore`
 func newFsBlockStore(id string, conf *Conf, indexConfig *blkstorage.IndexConfig,
 	dbHandle *leveldbhelper.DBHandle) *fsBlockStore {
-	return &fsBlockStore{id, conf, newBlockfileMgr(id, conf, indexConfig, dbHandle)}
+	fileMgr := newBlockfileMgr(id, conf, indexConfig, dbHandle)
+	return &fsBlockStore{id, conf, fileMgr, newBlockfileArchiver(id, fileMgr)}
 }
 
 // AddBlock adds a new block

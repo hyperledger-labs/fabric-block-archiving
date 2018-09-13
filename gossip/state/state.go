@@ -240,7 +240,7 @@ func NewGossipStateProvider(chainID string, services *ServicesMediator, ledger l
 
 	gossipChan, _ := services.Accept(func(message interface{}) bool {
 		// Get only data messages
-		return protoext.IsDataMsg(message.(*proto.GossipMessage)) &&
+		return message.(*proto.GossipMessage).IsDataMsg() &&
 			bytes.Equal(message.(*proto.GossipMessage).Channel, []byte(chainID))
 	}, false)
 
@@ -611,7 +611,7 @@ func (s *GossipStateProviderImpl) queueNewMessage(msg *proto.GossipMessage) {
 			logger.Warningf("Block [%d] received from gossip wasn't added to payload buffer: %v", dataMsg.Payload.SeqNum, err)
 			return
 		}
-
+		logger.Debugf("Received new payload with sequence number = [%d]", dataMsg.Payload.SeqNum)
 	} else {
 		logger.Debug("Gossip message received is not of data message type, usually this should not happen.")
 	}

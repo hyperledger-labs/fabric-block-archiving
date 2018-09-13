@@ -11,6 +11,7 @@ import (
 	"os"
 	"strings"
 
+	"github.com/hyperledger/fabric/internal/peer/blockfile"
 	"github.com/hyperledger/fabric/internal/peer/chaincode"
 	"github.com/hyperledger/fabric/internal/peer/channel"
 	"github.com/hyperledger/fabric/internal/peer/clilogging"
@@ -47,6 +48,7 @@ func main() {
 	mainCmd.AddCommand(clilogging.Cmd(nil))
 	mainCmd.AddCommand(channel.Cmd(nil))
 	mainCmd.AddCommand(lifecycle.Cmd())
+	mainCmd.AddCommand(blockfile.Cmd(nil))
 
 	// On failure Cobra prints the usage message and error string, so we only
 	// need to exit with a non-0 status

@@ -6,6 +6,8 @@ This enhancement for Hyperledger Fabric is aiming to:
 
 ![](docs/source/images/blockarchiving-diagram.png)
 
+Please refer [the proposal](https://github.com/hyperledger-labs/hyperledger-labs.github.io/blob/master/labs/fabric-block-archiving.md) for more detail.
+
 ## Getting Started
 
 To use this feature, you need to build hyperledger/fabric-peer container image and a repository container image to archive blocks on your local machine. In the next several steps, we are going to show you the steps how to build and bring up on your local environment for development purpose.
@@ -51,9 +53,11 @@ hyperledger/fabric-peer            amd64-blkvault                       5b05d8d7
 hyperledger/fabric-peer            latest                               5b05d8d79382        2 hours ago         48.1MB
 ```
 ----
-## Running the tests
+## Looking at how to work
 
 ### Clone Test suites for Block Archiving feature
+
+All scripts to run the following simple demo are included https://github.com/nekia/fabric-block-archiving-testenv.git.
 
 ```
 vagrant@ubuntu:~$ mkdir ~/dev
@@ -64,58 +68,38 @@ vagrant@ubuntu:~/dev$ cd fabric-block-archiving-testenv
 
 ### Download Hyperledger Fabric platform-specific binaries
 
+In the following demo, a simple Hyperledger Fabric network is actually deployed on your local environment. It's based on fabric-samples/first-network example. You need to download some binaries required for that.
+
 ```
 vagrant@ubuntu:~/dev/fabric-block-archiving-testenv$ curl -sSL http://bit.ly/2ysbOFE | bash -s -- 2.0.0-alpha 2.0.0-alpha 0.4.15 -s -d
 ```
 * You need to bypass docker image download(-d) and fabric-samples repo clone(-s)
+* If you would download docker image by mistake, it would override image tag of fabric-peer container image which is built for Block Archiving feature with the original one. In that case, you need to assign tag manually as below:
 
-### Setup environment for end to end test
-
-```
-vagrant@ubuntu:~/dev/fabric-block-archiving-testenv$ virtualenv e2e-test
-vagrant@ubuntu:~/dev/fabric-block-archiving-testenv$ . e2e-test/bin/activate
-(e2e-test) vagrant@ubuntu:~/dev/fabric-block-archiving-testenv$ cd feature/
-(e2e-test) vagrant@ubuntu:~/dev/fabric-block-archiving-testenv/feature$ pip install -r requirements.txt
-```
-* You need to install virtualenv (`apt-get install virtualenv`).
-
-### Run end to end test
-
-```
-# Sanity check
-(e2e-test) vagrant@ubuntu:~/dev/fabric-block-archiving-testenv/feature$ behave -t @dev -k blockArchiving.feature
-# Full test (It takes about about 20 min to complete)
-(e2e-test) vagrant@ubuntu:~/dev/fabric-block-archiving-testenv/feature$ behave -k blockArchiving.feature
-
-(snip)
-
-1 feature passed, 0 failed, 0 skipped
-5 scenarios passed, 0 failed, 0 skipped
-191 steps passed, 0 failed, 0 skipped, 0 undefined
-Took 18m21.142s
-
-vagrant@ubuntu:~/dev/fabric-block-archiving-testenv/feature$ deactivate
-```
-----
-## Looking at how to work
+  ```
+  vagrant@ubuntu:~/dev/fabric-block-archiving-testenv$ docker tag hyperledger/fabric-peer:amd64-blkvault hyperledger/fabric-peer:2.0.0-alpha
+  vagrant@ubuntu:~/dev/fabric-block-archiving-testenv$ docker tag hyperledger/fabric-peer:amd64-blkvault hyperledger/fabric-peer:latest
+  ```
 
 ### Clean up 
 
-Stop and remove all containers have been started and also delete all artifacts generated
+Stop and remove all containers which have been started and also delete all artifacts generated
 
 ```
 vagrant@ubuntu:~/dev/fabric-block-archiving-testenv$ ./byfn.sh down
-vagrant@ubuntu:~/dev/fabric-block-archiving-testenv$ sudo rm -rf ledgers/
+vagrant@ubuntu:~/dev/fabric-block-archiving-testenv$ sudo rm -rf ledgers/ ledgers-archived/
 ```
 
 ### Bring up network
+
+Launch Hyperledger Fabric network (2 organizations, 2 peers for each)
 
 ```
 vagrant@ubuntu:~/dev/fabric-block-archiving-testenv$ ./byfn.sh up -c mychannel
 ```
 
-* I changed to disable all procedures ( create channel, join channel etc. ) executed by 'cli' container by default
-* Ledger file created on peer is exposed on host file system ( under ~/dev/fabric-block-archiving-testenv/ledgers )
+* Ledger files created on each peer are exposed on host file system ( under ~/dev/fabric-block-archiving-testenv/ledgers )
+* Ledger files archived into a repository node are exposed on host file system ( under ~/dev/fabric-block-archiving-testenv/ledgers-archived )
 
 ### Add more channel
 
@@ -158,55 +142,53 @@ vagrant@ubuntu:~/dev/fabric-block-archiving-testenv$ for i in $(seq 1 10000); do
 You can monitor the number of blockfiles for each org, each channel and each peer.
 
 ```
-    $ cd ~/dev/fst-poc-fabric-env
-    $ watch -n 3 ./scripts/checkarchive.sh status
-    ==== The number of archived blockfiles on blockVault ====
-    mychannel
-      org1: 30
-      org2: 30
-    yourchannel
-      org1: 7
-      org2: 30
-    ==== The number of blockfiles on local file system ====
-    mychannel
-      org1
-        peer0: 40
-        peer1: 40
-        peer2: 0
-        peer3: 0
-        peer4: 0
-      org2
-        peer0: 40
-        peer1: 40
-        peer2: 0
-        peer3: 0
-        peer4: 0
-    yourchannel
-      org1
-        peer0: 34
-        peer1: 33
-        peer2: 0
-        peer3: 0
-        peer4: 0
-      org2
-        peer0: 13
-        peer1: 33
-        peer2: 0
-        peer3: 0
-        peer4: 0
+vagrant@ubuntu:~/dev/fabric-block-archiving-testenv$ watch -n 3 ./scripts/host/checkarchive.sh status
+==== The number of archived blockfiles on blockVault ====
+mychannel
+  org1: 30
+  org2: 30
+yourchannel
+  org1: 7
+  org2: 30
+==== The number of blockfiles on local file system ====
+mychannel
+  org1
+    peer0: 40
+    peer1: 40
+    peer2: 0
+    peer3: 0
+    peer4: 0
+  org2
+    peer0: 40
+    peer1: 40
+    peer2: 0
+    peer3: 0
+    peer4: 0
+yourchannel
+  org1
+    peer0: 34
+    peer1: 33
+    peer2: 0
+    peer3: 0
+    peer4: 0
+  org2
+    peer0: 13
+    peer1: 33
+    peer2: 0
+    peer3: 0
+    peer4: 0
 ```
 
 You need to configure checkarchive.sh according to your network topology
 
 ```
-    $ cd ~/dev/fst-poc-fabric-env
-    $ head scripts/checkarchive.sh 
-    #!/bin/bash
-    FABRIC_ROOT=$GOPATH/src/github.com/hyperledger/fabric
-    LOCAL_LEDGER_DIR=/home/vagrant/dev/fst-poc-fabric-env/ledgers
-    ORGS="org1 org2"
-    CHANNELS="mychannel yourchannel"
-    PEERS="peer0 peer1 peer2 peer3 peer4"
+vagrant@ubuntu:~/dev/fabric-block-archiving-testenv$ head scripts/checkarchive.sh 
+#!/bin/bash
+FABRIC_ROOT=$GOPATH/src/github.com/hyperledger/fabric
+LOCAL_LEDGER_DIR=/home/vagrant/dev/fst-poc-fabric-env/ledgers
+ORGS="org1 org2"
+CHANNELS="mychannel yourchannel"
+PEERS="peer0 peer1 peer2 peer3 peer4"
 ```
 
 ### Verify blockchain
@@ -214,54 +196,50 @@ You need to configure checkarchive.sh according to your network topology
 You can verify the consistency of blockchain from each peer
 
 ```
-    $ cd ~/dev/fst-poc-fabric-env
-    $ ./scripts/checkarchive.sh verify
-    mychannel
-      org1
-        peer0: {"pass":true,"channelID":"mychannel"}
-        peer1: {"pass":true,"channelID":"mychannel"}
-        peer2: Error: No such container: peer2.org1.example.com
-        peer3: Error: No such container: peer3.org1.example.com
-        peer4: Error: No such container: peer4.org1.example.com
-      org2
-        peer0: {"pass":true,"channelID":"mychannel"}
-        peer1: {"pass":true,"channelID":"mychannel"}
-        peer2: Error: No such container: peer2.org2.example.com
-        peer3: Error: No such container: peer3.org2.example.com
-        peer4: Error: No such container: peer4.org2.example.com
-    yourchannel
-      org1
-        peer0: {"pass":true,"channelID":"yourchannel"}
-        peer1: {"pass":true,"channelID":"yourchannel"}
-        peer2: Error: No such container: peer2.org1.example.com
-        peer3: Error: No such container: peer3.org1.example.com
-        peer4: Error: No such container: peer4.org1.example.com
-      org2
-        peer0: {"pass":true,"channelID":"yourchannel"}
-        peer1: {"pass":true,"channelID":"yourchannel"}
-        peer2: Error: No such container: peer2.org2.example.com
-        peer3: Error: No such container: peer3.org2.example.com
-        peer4: Error: No such container: peer4.org2.example.com
+vagrant@ubuntu:~/dev/fabric-block-archiving-testenv$ ./scripts/checkarchive.sh verify
+mychannel
+  org1
+    peer0: {"pass":true,"channelID":"mychannel"}
+    peer1: {"pass":true,"channelID":"mychannel"}
+    peer2: Error: No such container: peer2.org1.example.com
+    peer3: Error: No such container: peer3.org1.example.com
+    peer4: Error: No such container: peer4.org1.example.com
+  org2
+    peer0: {"pass":true,"channelID":"mychannel"}
+    peer1: {"pass":true,"channelID":"mychannel"}
+    peer2: Error: No such container: peer2.org2.example.com
+    peer3: Error: No such container: peer3.org2.example.com
+    peer4: Error: No such container: peer4.org2.example.com
+yourchannel
+  org1
+    peer0: {"pass":true,"channelID":"yourchannel"}
+    peer1: {"pass":true,"channelID":"yourchannel"}
+    peer2: Error: No such container: peer2.org1.example.com
+    peer3: Error: No such container: peer3.org1.example.com
+    peer4: Error: No such container: peer4.org1.example.com
+  org2
+    peer0: {"pass":true,"channelID":"yourchannel"}
+    peer1: {"pass":true,"channelID":"yourchannel"}
+    peer2: Error: No such container: peer2.org2.example.com
+    peer3: Error: No such container: peer3.org2.example.com
+    peer4: Error: No such container: peer4.org2.example.com
 ```
 
 ----
+## Running end-to-end tests
+
+Please refer [README-E2ETEST.md](./README-E2ETEST.md)
+
+----
+
 ## Deployment
 
-Add additional notes about how to deploy this on a live system
+### Deploying on Raspberry Pi
 
-## Built With
+(WIP)
 
-* [Dropwizard](http://www.dropwizard.io/1.0.2/docs/) - The web framework used
-* [Maven](https://maven.apache.org/) - Dependency Management
-* [ROME](https://rometools.github.io/rome/) - Used to generate RSS Feeds
-
-## Contributing
-
-Please read [CONTRIBUTING.md](https://gist.github.com/PurpleBooth/b24679402957c63ec426) for details on our code of conduct, and the process for submitting pull requests to us.
-
-## Versioning
-
-We use [SemVer](http://semver.org/) for versioning. For the versions available, see the [tags on this repository](https://github.com/your/project/tags). 
+![](docs/source/images/blockarchiving-deploy-rp3.png)
+![](docs/source/images/blockarchiving-plot.png)
 
 ## Authors
 
@@ -271,39 +249,6 @@ We use [SemVer](http://semver.org/) for versioning. For the versions available, 
 
 ## License
 
-This project is licensed under the MIT License - see the [LICENSE.md](LICENSE.md) file for details
+This project is licensed under the Apache License Version 2.0 - see the [LICENSE.md](LICENSE.md) file for details
 
-## Acknowledgments
-
-* Hat tip to anyone whose code was used
-* Inspiration
-* etc
-
-# Lab Name
-Hyperledger Fabric Block Archiving
-
-# Short Description
-
-* Reduce the total amount of storage space required for an organisation to operate a Hyperledger Fabric network by archiving block data into repository.
-* For organisations to operate a Hyperledger Fabric network with low resourced nodes such as a IoT edge devices.
-
-# Scope of Lab
-
-This feature is aimed primarily at Hyperledger Fabric network administrators who have been running their own network and have resource shortage problems. When considering the long term operation of service which makes use of Hyperledger Fabric as an underlying blockchain, Scalability is one of the most important factors for future business expansion while resource planning is critical in determining future capability. Calculating the required disk space is one of the key challenges faced by our partners. In the Blockchain community, there are a lot options to address this issue. In Bitcoin, Lightweight Node has already been introduced as an option for non-miners which download just the block headers so as to reduce disk space usage. Ethereum, the community has defined the Light client protocol for almost the same purpose as bitcoin's one. While in Hyperledger Fabric, there is a feature request for this issue as well. Unless this kind of feature is available, the business stakeholders will not be able to start their service in production on a large scale. This is one of the main reasons why most of the business stakeholders have considered making use of Blockchain as a Service (BaaS) managed by the cloud service providers despite it incurring more costs.
-
-In our proposal, Hyperledger Fabric Block Archiving, data is handled in the unit of a certain amount of chunk of blocks called blockfiles. By default in Hyperledger Fabric, each peer node in an organisation needs to store block data into the blockfiles one by one from the genesis block to the latest one. So they have the exact same series of blockfiles through all peer nodes which are connecting to the same channel. BlockVault uses this characteristic to realize our concept. This functionality makes redundant the notion that every peer node is required to retain all blockfiles in the local file system indefinitely. And more importantly this preserves the Blockchain characteristics even after archiving the blockfiles. By enabling the block archiving feature not all peer nodes need to keep maintaining all the blockfiles. Simply, even devices which don't have much disk space could be a peer node of the blockchain network. For example, in an IoT system, you would be able to construct a blockchain network using edge devices with attached sensors in order to store sensor data and track information. This feature will make the target areas of the blockchain system broader than ever. Therefore BlockVault provides new possibilities for Blockchain applications.
-
-Please refer to [the technical overview](https://github.com/nekia/Fabric-block-archiving/blob/techoverview/BlockVault%20-%20Technical%20Overview.pdf) for more detail.
-
-
-# Initial Committers
-- [anand-jpa](https://github.com/anand-jpa) - Anand Konchery
-- [chrism28](https://github.com/chrism28) - Chris Murphy
-- [nekia](https://github.com/nekia) - Atsushi Neki
-
-# Sponsors
-- https://github.com/hartm - Member of Hyperledger TSC
-
-# Pre-existing Repository
-- https://github.com/nekia/Fabric-block-archiving
 

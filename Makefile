@@ -187,7 +187,7 @@ discover: $(BUILD_DIR)/bin/discover
 token: GO_LDFLAGS=-X $(pkgmap.$(@F))/metadata.Version=$(PROJECT_VERSION)
 token: $(BUILD_DIR)/bin/token
 
-blkvault-repo-docker: $(BUILD_DIR)/image/blkvault-repo/$(DUMMY)
+blkvault-repo-docker: $(BUILD_DIR)/images/blkvault-repo/$(DUMMY)
 
 .PHONY: integration-test
 integration-test: gotool.ginkgo ccenv baseos docker-thirdparty

@@ -22,14 +22,14 @@ import (
 )
 
 // sendBlockfileToVault - Moves a blockfile into the vault
-func sendBlockfileToVault(cid string, fileNum int) error {
+func sendBlockfileToVault(cid string, fileNum int) (error, bool) {
 
 	blockfileDir := filepath.Join(ledgerconfig.GetBlockStorePath(), ChainsDir, cid)
 	srcFilePath := deriveBlockfilePath(blockfileDir, fileNum)
 	srcFile, err := os.Open(srcFilePath)
 	if err != nil {
 		logger_ar.Warningf("Already archived : blockfileDir [%s] fileNum [%d]", blockfileDir, fileNum)
-		return errors.New("Already archived")
+		return errors.New("Already archived"), true
 	}
 	defer srcFile.Close()
 
@@ -47,7 +47,7 @@ func sendBlockfileToVault(cid string, fileNum int) error {
 	sshConn, err := ssh.Dial("tcp", blockVaultURL, config)
 	if err != nil {
 		logger_ar.Warningf("Block store server [%s] is unreachable [%s]", blockVaultURL, err.Error())
-		return errors.New("Server unreachable")
+		return errors.New("Server unreachable"), false
 	}
 	defer sshConn.Close()
 
@@ -74,7 +74,7 @@ func sendBlockfileToVault(cid string, fileNum int) error {
 
 	logger_ar.Info("sendBlockfileToVault - sent blockfile to vault: ", fileNum, " written=", written)
 
-	return nil
+	return nil, false
 }
 
 func (mgr *blockfileMgr) notifyArchiver(fileNum int) {

@@ -31,26 +31,26 @@ Basically you only need to follow the steps described in the following page to s
 
 ### Building container image
 
-You can use prebuild images for containers other than fabric-peer and fabric-blkvault-repo. So you don't need to do `make all`, as mentioned in [the document](https://hyperledger-fabric.readthedocs.io/en/master/dev-setup/build.html). You just need to do the following 2 commands.
+You can use prebuild images for containers other than fabric-peer and fabric-blkarchiver-repo. So you don't need to do `make all`, as mentioned in [the document](https://hyperledger-fabric.readthedocs.io/en/master/dev-setup/build.html). You just need to do the following 2 commands.
 
 ```
 vagrant@ubuntu:~/go/src/github.com/hyperledger/fabric$ make peer-docker
-vagrant@ubuntu:~/go/src/github.com/hyperledger/fabric$ make blkvault-repo-docker
+vagrant@ubuntu:~/go/src/github.com/hyperledger/fabric$ make blkarchiver-repo-docker
 ```
 
 Now you should be able to see the following container images on your local machine.
 
 ```
 vagrant@ubuntu:~/go/src/github.com/hyperledger/fabric$ docker images
-REPOSITORY                         TAG                                  IMAGE ID            CREATED             SIZE
-hyperledger/fabric-blkvault-repo   2.0.0-alpha                          129811011d3d        2 hours ago         202MB
-hyperledger/fabric-blkvault-repo   amd64-2.0.0-alpha-snapshot-ea48f79   129811011d3d        2 hours ago         202MB
-hyperledger/fabric-blkvault-repo   amd64-blkvault                       129811011d3d        2 hours ago         202MB
-hyperledger/fabric-blkvault-repo   latest                               129811011d3d        2 hours ago         202MB
-hyperledger/fabric-peer            2.0.0-alpha                          5b05d8d79382        2 hours ago         48.1MB
-hyperledger/fabric-peer            amd64-2.0.0-alpha-snapshot-ea48f79   5b05d8d79382        2 hours ago         48.1MB
-hyperledger/fabric-peer            amd64-blkvault                       5b05d8d79382        2 hours ago         48.1MB
-hyperledger/fabric-peer            latest                               5b05d8d79382        2 hours ago         48.1MB
+REPOSITORY                            TAG                                  IMAGE ID            CREATED             SIZE
+hyperledger/fabric-blkarchiver-repo   2.0.0-alpha                          129811011d3d        2 hours ago         202MB
+hyperledger/fabric-blkarchiver-repo   amd64-2.0.0-alpha-snapshot-ea48f79   129811011d3d        2 hours ago         202MB
+hyperledger/fabric-blkarchiver-repo   amd64-blkvault                       129811011d3d        2 hours ago         202MB
+hyperledger/fabric-blkarchiver-repo   latest                               129811011d3d        2 hours ago         202MB
+hyperledger/fabric-peer               2.0.0-alpha                          5b05d8d79382        2 hours ago         48.1MB
+hyperledger/fabric-peer               amd64-2.0.0-alpha-snapshot-ea48f79   5b05d8d79382        2 hours ago         48.1MB
+hyperledger/fabric-peer               amd64-blkvault                       5b05d8d79382        2 hours ago         48.1MB
+hyperledger/fabric-peer               latest                               5b05d8d79382        2 hours ago         48.1MB
 ```
 ----
 ## Looking at how to work

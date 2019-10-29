@@ -4,7 +4,7 @@ COPYRIGHT Fujitsu Software Technologies Limited 2018 All Rights Reserved.
 
 /*
 This file implements issuing an action for verifying data consitency of
-existing blocks, including archived ones on blockVault, to archiving
+existing blocks, including archived ones on BlockArchiver, to archiving
 system chaincode.
 */
 

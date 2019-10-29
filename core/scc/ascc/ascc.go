@@ -52,7 +52,7 @@ func New(metricsProvider metrics.Provider) *ArchiveSysCC {
 	ascc := &ArchiveSysCC{}
 
 	once.Do(func() {
-		archiver.InitBlockVault(metricsProvider)
+		archiver.InitBlockArchiver(metricsProvider)
 	})
 
 	return ascc

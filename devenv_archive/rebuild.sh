@@ -52,9 +52,9 @@ fi
 
 popd
 
-echo "Starting network for blockVault BDD..."
+echo "Starting network for blockArchiver BDD..."
 pushd ~/dev/fst-poc-fabric-env/feature
 # This path depends on your choice when cloning repository
-behave --no-skipped --tags=@dev ./blockVault.feature
+behave --no-skipped --tags=@dev ./blockArchiver.feature
 
 popd

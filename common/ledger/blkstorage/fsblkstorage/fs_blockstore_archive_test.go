@@ -13,7 +13,7 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-func TestSendBlockfileToVault(t *testing.T) {
+func TestSendBlockfileToRepo(t *testing.T) {
 	env := newTestEnv(t, NewConf(testPath(), 0))
 	defer env.Cleanup()
 
@@ -27,5 +27,5 @@ func TestSendBlockfileToVault(t *testing.T) {
 		assert.NoError(t, err)
 	}
 
-	sendBlockfileToVault("testLedger", 0)
+	sendBlockfileToRepo("testLedger", 0)
 }

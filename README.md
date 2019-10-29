@@ -45,11 +45,11 @@ vagrant@ubuntu:~/go/src/github.com/hyperledger/fabric$ docker images
 REPOSITORY                            TAG                                  IMAGE ID            CREATED             SIZE
 hyperledger/fabric-blkarchiver-repo   2.0.0-alpha                          129811011d3d        2 hours ago         202MB
 hyperledger/fabric-blkarchiver-repo   amd64-2.0.0-alpha-snapshot-ea48f79   129811011d3d        2 hours ago         202MB
-hyperledger/fabric-blkarchiver-repo   amd64-blkvault                       129811011d3d        2 hours ago         202MB
+hyperledger/fabric-blkarchiver-repo   amd64-blkarchiver                    129811011d3d        2 hours ago         202MB
 hyperledger/fabric-blkarchiver-repo   latest                               129811011d3d        2 hours ago         202MB
 hyperledger/fabric-peer               2.0.0-alpha                          5b05d8d79382        2 hours ago         48.1MB
 hyperledger/fabric-peer               amd64-2.0.0-alpha-snapshot-ea48f79   5b05d8d79382        2 hours ago         48.1MB
-hyperledger/fabric-peer               amd64-blkvault                       5b05d8d79382        2 hours ago         48.1MB
+hyperledger/fabric-peer               amd64-blkarchiver                    5b05d8d79382        2 hours ago         48.1MB
 hyperledger/fabric-peer               latest                               5b05d8d79382        2 hours ago         48.1MB
 ```
 ----
@@ -77,8 +77,8 @@ vagrant@ubuntu:~/dev/fabric-block-archiving-testenv$ curl -sSL http://bit.ly/2ys
 * If you would download docker image by mistake, it would override image tag of fabric-peer container image which is built for Block Archiving feature with the original one. In that case, you need to assign tag manually as below:
 
   ```
-  vagrant@ubuntu:~/dev/fabric-block-archiving-testenv$ docker tag hyperledger/fabric-peer:amd64-blkvault hyperledger/fabric-peer:2.0.0-alpha
-  vagrant@ubuntu:~/dev/fabric-block-archiving-testenv$ docker tag hyperledger/fabric-peer:amd64-blkvault hyperledger/fabric-peer:latest
+  vagrant@ubuntu:~/dev/fabric-block-archiving-testenv$ docker tag hyperledger/fabric-peer:amd64-blkarchiver hyperledger/fabric-peer:2.0.0-alpha
+  vagrant@ubuntu:~/dev/fabric-block-archiving-testenv$ docker tag hyperledger/fabric-peer:amd64-blkarchiver hyperledger/fabric-peer:latest
   ```
 
 ### Clean up 
@@ -143,7 +143,7 @@ You can monitor the number of blockfiles for each org, each channel and each pee
 
 ```
 vagrant@ubuntu:~/dev/fabric-block-archiving-testenv$ watch -n 3 ./scripts/host/checkarchive.sh status
-==== The number of archived blockfiles on blockVault ====
+==== The number of archived blockfiles on BlockArchiver ====
 mychannel
   org1: 30
   org2: 30

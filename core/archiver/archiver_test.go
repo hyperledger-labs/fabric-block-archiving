@@ -10,36 +10,36 @@ import (
 )
 
 // TestAttrs tests attributes
-func TestInitBlockVaultArchiver(t *testing.T) {
+func TestInitblockArchiverArchiver(t *testing.T) {
 	provider := testutilConstructMetricProvider()
 	viper.Set("peer.archiver.enabled", true)
 	viper.Set("peer.archiving.enabled", false)
 
-	InitBlockVault(provider.fakeProvider)
+	InitblockArchiver(provider.fakeProvider)
 }
 
-func TestInitBlockVaultArchiving(t *testing.T) {
+func TestInitblockArchiverArchiving(t *testing.T) {
 	provider := testutilConstructMetricProvider()
 	viper.Set("peer.archiver.enabled", false)
 	viper.Set("peer.archiving.enabled", true)
 
-	InitBlockVault(provider.fakeProvider)
+	InitblockArchiver(provider.fakeProvider)
 }
 
-func TestInitBlockVaultBoth(t *testing.T) {
+func TestInitblockArchiverBoth(t *testing.T) {
 	provider := testutilConstructMetricProvider()
 	viper.Set("peer.archiver.enabled", true)
 	viper.Set("peer.archiving.enabled", true)
 
-	InitBlockVault(provider.fakeProvider)
+	InitblockArchiver(provider.fakeProvider)
 }
 
-func TestInitBlockVaultNone(t *testing.T) {
+func TestInitblockArchiverNone(t *testing.T) {
 	provider := testutilConstructMetricProvider()
 	viper.Set("peer.archiver.enabled", false)
 	viper.Set("peer.archiving.enabled", false)
 
-	InitBlockVault(provider.fakeProvider)
+	InitblockArchiver(provider.fakeProvider)
 }
 
 type testMetricProvider struct {

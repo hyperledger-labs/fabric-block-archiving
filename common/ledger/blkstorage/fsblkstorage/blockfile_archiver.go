@@ -20,18 +20,21 @@ var logger_ar = flogging.MustGetLogger("archiver.archive")
 var logger_ar_cmn = flogging.MustGetLogger("archiver.common")
 
 type blockfileArchiver struct {
-	chainID                    string
-	mgr                        *blockfileMgr
-	blockfileDir               string
-	nextBlockfileNum           int
-	totalArchivedBlockfileSize int64
+	chainID          string
+	mgr              *blockfileMgr
+	blockfileDir     string
+	nextBlockfileNum int
 }
+
+const (
+	maxRetryForCatchUp = 1000 // Maximum of retries for catching up with the latest blockfile to be actually archived
+)
 
 func newBlockfileArchiver(id string, mgr *blockfileMgr) *blockfileArchiver {
 	logger_ar.Info("newBlockfileArchiver: ", id)
 
 	blockfileDir := filepath.Join(blockarchive.BlockStorePath, ChainsDir, id)
-	arch := &blockfileArchiver{id, mgr, blockfileDir, 1, 0}
+	arch := &blockfileArchiver{id, mgr, blockfileDir, 1}
 
 	if blockarchive.IsArchiver {
 		logger_ar.Info("newBlockfileArchiver - creating archiverChan...")
@@ -78,18 +81,22 @@ func (arch *blockfileArchiver) archiveChannelIfNecessary() {
 	// TODO: Refactor this as it's not using the list at all...
 	deleteCandidateList := getOldFileList(arch.blockfileDir, numBlockfileEachArchiving+numKeepLatestBlocks)
 	if len(deleteCandidateList) > 0 {
-		var err error
+		// var err error
 
 		for i := 0; i < numBlockfileEachArchiving; i++ {
 			// TODO: I think this is a potential bug. What if we stop and restart archiver
 			// - won't the block numbers start back at 1???
-			err = arch.archiveBlockfile(arch.nextBlockfileNum, true)
-			if err != nil {
-				logger_ar.Info("Failed: Archiver")
-			} else {
-				logger_ar.Info("Succeeded: Archiver")
-				arch.nextBlockfileNum++
-				blockarchive.ArchiverStats.LedgerStats(chainID).UpdateArchivedBlockfileSize(arch.totalArchivedBlockfileSize)
+			for j := 0; j < maxRetryForCatchUp; j++ {
+				if err, alreadyArchived := arch.archiveBlockfile(arch.nextBlockfileNum, true); err != nil && alreadyArchived != true {
+					logger_ar.Info("Failed: Archiver")
+					break
+				} else {
+					logger_ar.Info("Succeeded: Archiver")
+					arch.nextBlockfileNum++
+					if alreadyArchived == false {
+						break
+					}
+				}
 			}
 		}
 	} else {
@@ -98,29 +105,29 @@ func (arch *blockfileArchiver) archiveChannelIfNecessary() {
 }
 
 // archiveBlockfile sends a blockfile to the blockVault and deletes it if required
-func (arch *blockfileArchiver) archiveBlockfile(fileNum int, deleteTheFile bool) error {
+func (arch *blockfileArchiver) archiveBlockfile(fileNum int, deleteTheFile bool) (error, bool) {
 
 	logger_ar.Info("Archiving: archiveBlockfile  deleteTheFile=", deleteTheFile)
 
 	// Send the blockfile to the vault
-	if err := sendBlockfileToVault(arch.chainID, fileNum); err != nil {
+	if err, alreadyArchived := sendBlockfileToVault(arch.chainID, fileNum); err != nil && alreadyArchived == false {
 		logger_ar.Error(err)
-		return err
+		return err, false
+	} else if alreadyArchived == true {
+		logger_ar.Infof("[blockfile_%06d] Already archived. Skip...", fileNum)
+		return nil, true
 	}
 
 	// Initiate a gossip message to let the other peers know...
 	arch.sendArchivedMessage(fileNum)
 
-	fileSize := arch.getBlockfileSize(fileNum)
-	arch.totalArchivedBlockfileSize += fileSize
-
 	// Record the fact that the blockfile has been archived, and delete it locally if required
 	if err := arch.SetBlockfileArchived(fileNum, deleteTheFile); err != nil {
 		logger_ar.Error(err)
-		return err
+		return err, false
 	}
 
-	return nil
+	return nil, false
 }
 
 func (arch *blockfileArchiver) sendArchivedMessage(fileNum int) {
@@ -173,29 +180,6 @@ func (arch *blockfileArchiver) handleArchivedBlockfile(fileNum int, deleteTheFil
 	}
 
 	return nil
-}
-
-func (arch *blockfileArchiver) getBlockfileSize(fileNum int) int64 {
-
-	srcFilePath := deriveBlockfilePath(arch.blockfileDir, fileNum)
-
-	file, err := os.OpenFile(srcFilePath, os.O_RDONLY, 0600)
-	if err != nil {
-		logger_ar.Error(err)
-		return 0
-	}
-	defer file.Close()
-
-	fileinfo, staterr := file.Stat()
-	if staterr != nil {
-		logger_ar.Error(err)
-		return 0
-	}
-
-	fileSize := fileinfo.Size()
-	logger_ar.Infof("%s : %d", srcFilePath, fileSize)
-
-	return fileSize
 }
 
 // deleteArchivedBlockfile - Called once a blockfile has been archived to delete it from the local filesystem

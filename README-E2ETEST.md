@@ -2,7 +2,7 @@
 
 ## Running end-to-end tests
 
-We using [behave](https://behave.readthedocs.io/en/latest/) python package which is BDD (behaviour-driven development) for e2e testing. uses tests written in a natural language style, backed up by Python code. 
+We are using [behave](https://behave.readthedocs.io/en/latest/) python package which is BDD (behaviour-driven development) for e2e testing and uses tests written in a natural language style, backed up by Python code. 
 
 ### Prerequisites
 

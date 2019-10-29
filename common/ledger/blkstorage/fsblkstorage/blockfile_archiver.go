@@ -8,7 +8,6 @@ import (
 	"io/ioutil"
 	"os"
 	"path/filepath"
-	"sort"
 
 	"github.com/hyperledger/fabric/common/flogging"
 	"github.com/hyperledger/fabric/common/ledger/blockarchive"
@@ -78,15 +77,15 @@ func (arch *blockfileArchiver) archiveChannelIfNecessary() {
 	numBlockfileEachArchiving := blockarchive.NumBlockfileEachArchiving
 	numKeepLatestBlocks := blockarchive.NumKeepLatestBlocks
 
-	// TODO: Refactor this as it's not using the list at all...
-	deleteCandidateList := getOldFileList(arch.blockfileDir, numBlockfileEachArchiving+numKeepLatestBlocks)
-	if len(deleteCandidateList) > 0 {
+	if isNeedArchiving(arch.blockfileDir, numBlockfileEachArchiving+numKeepLatestBlocks) {
 		// var err error
 
 		for i := 0; i < numBlockfileEachArchiving; i++ {
-			// TODO: I think this is a potential bug. What if we stop and restart archiver
-			// - won't the block numbers start back at 1???
+
 			for j := 0; j < maxRetryForCatchUp; j++ {
+				// alreadyArchived == true means the blockfile has already been archived.
+				// When returning alreadyArchived = true, then retrying to the next blockfile
+				// until occuring the actual archiving within the maximum retry count
 				if err, alreadyArchived := arch.archiveBlockfile(arch.nextBlockfileNum, true); err != nil && alreadyArchived != true {
 					logger_ar.Info("Failed: Archiver")
 					break
@@ -170,8 +169,6 @@ func (arch *blockfileArchiver) handleArchivedBlockfile(fileNum int, deleteTheFil
 
 	logger_ar_cmn.Info("blockfileArchiver.handleArchivedBlockfile...")
 
-	// TODO: Need to record the fact that the blockfile has been archived...
-
 	// Delete the local blockfile if required
 	if deleteTheFile {
 		if err := arch.deleteArchivedBlockfile(fileNum); err != nil {
@@ -211,35 +208,22 @@ func getFileList(folderPath string) []string {
 	return fileList
 }
 
-/**
-Block file name like these:
-	blockfile_000000
-	blockfile_000001
-	blockfile_000002
-	blockfile_000003
-	blockfile_000004
-If keepFileNum = 3 then these file will be called old file:
-	blockfile_000000
-	blockfile_000001
-*/
-func getOldFileList(blockfileFolder string, keepFileNum int) []string {
+// isNeedArchiving - returns whether archiving should be triggered or not
+func isNeedArchiving(blockfileFolder string, keepFileNum int) bool {
 	logger_ar.Debugf("blockfileFolder=%s, keepFileNum=%d", blockfileFolder, keepFileNum)
-	var oldFileList []string
+
 	var allFileList []string
 	allFileList = getFileList(blockfileFolder)
 	if len(allFileList) == 0 {
 		logger_ar.Debug("There is no blockfile yet")
-		return oldFileList
+		return false
 	}
-	// Sort descending
-	sort.Sort(sort.Reverse(sort.StringSlice(allFileList)))
-	for i, fileName := range allFileList {
-		cnt := i + 1
-		if cnt > keepFileNum {
-			logger_ar.Debugf("Oldest blockfile %d : %s", cnt, fileName)
-			oldFileList = append(oldFileList, fileName)
-		}
+
+	if len(allFileList) > keepFileNum {
+		logger_ar.Debugf("%d blockfile(s) should be archived", len(allFileList)-keepFileNum)
+		return true
+	} else {
+		logger_ar.Debug("There is no blockfile to be archived yet")
+		return false
 	}
-	logger_ar.Debugf("Return oldFileList : %s", oldFileList)
-	return oldFileList
 }

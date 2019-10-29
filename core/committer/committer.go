@@ -64,7 +64,8 @@ type Committer interface {
 	// GetMissingPvtDataTracker return the MissingPvtDataTracker
 	GetMissingPvtDataTracker() (ledger.MissingPvtDataTracker, error)
 
-	// TODO: Does this really belong here?
+	// SetArchived internally notifies the status change, which comes from archiver via gossip protocol,
+	// to ledger component.
 	SetArchived(blockFileNo int, deleteTheFile bool) error
 
 	// Closes committing service

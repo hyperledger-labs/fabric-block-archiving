@@ -7,8 +7,8 @@ package blockarchive
 var IsArchiver bool
 var IsClient bool
 var BlockStorePath string
-var BlockVaultDir string
-var BlockVaultURL string
+var BlockArchiverDir string
+var BlockArchiverURL string
 var NumBlockfileEachArchiving int
 var NumKeepLatestBlocks int
 

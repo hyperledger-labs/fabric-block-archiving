@@ -35,8 +35,8 @@ vagrant@ubuntu:~/dev/fabric-block-archiving-testenv$ curl -sSL http://bit.ly/2ys
 * If you would download docker image by mistake, it would override image tag of fabric-peer container image which is built for Block Archiving feature with the original one. In that case, you need to assign tag manually as below:
 
   ```
-  vagrant@ubuntu:~/dev/fabric-block-archiving-testenv$ docker tag hyperledger/fabric-peer:amd64-blkvault hyperledger/fabric-peer:2.0.0-alpha
-  vagrant@ubuntu:~/dev/fabric-block-archiving-testenv$ docker tag hyperledger/fabric-peer:amd64-blkvault hyperledger/fabric-peer:latest
+  vagrant@ubuntu:~/dev/fabric-block-archiving-testenv$ docker tag hyperledger/fabric-peer:amd64-blkarchiver hyperledger/fabric-peer:2.0.0-alpha
+  vagrant@ubuntu:~/dev/fabric-block-archiving-testenv$ docker tag hyperledger/fabric-peer:amd64-blkarchiver hyperledger/fabric-peer:latest
   ```
 
 ### Setup environment for end-to-end test

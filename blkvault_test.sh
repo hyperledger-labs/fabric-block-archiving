@@ -12,7 +12,7 @@ fi
 
 go test -coverprofile=${COV}/fsblkstorage.coverprofile -v github.com/hyperledger/fabric/common/ledger/blkstorage/fsblkstorage
 go test -coverprofile=${COV}/blkstorage.coverprofile -v github.com/hyperledger/fabric/common/ledger/blkstorage
-go test -coverprofile=${COV}/blockvault.coverprofile -v github.com/hyperledger/fabric/common/ledger/blockvault
+go test -coverprofile=${COV}/blockarchiver.coverprofile -v github.com/hyperledger/fabric/common/ledger/blockarchiver
 go test -coverprofile=${COV}/ledgerfsck.coverprofile -v github.com/hyperledger/fabric/common/ledger/util/ledgerfsck
 go test -coverprofile=${COV}/archiver.coverprofile -v github.com/hyperledger/fabric/core/archiver
 go test -coverprofile=${COV}/kvledger.coverprofile -v github.com/hyperledger/fabric/core/ledger/kvledger

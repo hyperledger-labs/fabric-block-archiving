@@ -3,9 +3,9 @@
 #
 
 #
-# Create a custom docker image for blockVault container
+# Create a custom docker image for BlockArchiver container
 # This dockerfile is base on https://docs.docker.com/engine/examples/running_ssh_service/.
-# Port "222" is exposed for accessing to blockVault
+# Port "222" is exposed for accessing to BlockArchiver
 #
 
 FROM ubuntu:16.04

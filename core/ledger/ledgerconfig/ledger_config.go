@@ -43,13 +43,13 @@ var confCollElgProcMaxDbBatchSize = &conf{"ledger.pvtdataStore.collElgProcMaxDbB
 var confCollElgProcDbBatchesInterval = &conf{"ledger.pvtdataStore.collElgProcDbBatchesInterval", 1000}
 
 const confMaxBlockfileSize = "ledger.maxBlockfileSize"
-const confBlockVaultURL = "ledger.blockVault.url"
-const confBlockVaultDir = "ledger.blockVault.dir"
+const confBlockArchiverURL = "ledger.blockArchiver.url"
+const confBlockArchiverDir = "ledger.blockArchiver.dir"
 const confArchiverEach = "peer.archiver.each"
 const confArchiverKeep = "peer.archiver.keep"
 
-const defaultBlockVaultURL = "ledger-bank:222"
-const defaultBlockVaultDir = "/tmp"
+const defaultBlockArchiverURL = "ledger-bank:222"
+const defaultBlockArchiverDir = "/tmp"
 const defaultArchiverEach = 30
 const defaultArchiverKeep = 10
 
@@ -212,20 +212,20 @@ type conf struct {
 	DefaultVal int
 }
 
-//GetBlockVaultURL exposes the BlockVaultURL variable
-func GetBlockVaultURL() string {
-	url := viper.GetString(confBlockVaultURL)
-	if !viper.IsSet(confBlockVaultURL) {
-		url = defaultBlockVaultURL
+//GetBlockArchiverURL exposes the BlockArchiverURL variable
+func GetBlockArchiverURL() string {
+	url := viper.GetString(confBlockArchiverURL)
+	if !viper.IsSet(confBlockArchiverURL) {
+		url = defaultBlockArchiverURL
 	}
 	return url
 }
 
-//GetBlockVaultDir exposes the BlockVaultDir variable
-func GetBlockVaultDir() string {
-	dir := viper.GetString(confBlockVaultDir)
-	if !viper.IsSet(confBlockVaultDir) {
-		dir = defaultBlockVaultDir
+//GetBlockArchiverDir exposes the BlockArchiverDir variable
+func GetBlockArchiverDir() string {
+	dir := viper.GetString(confBlockArchiverDir)
+	if !viper.IsSet(confBlockArchiverDir) {
+		dir = defaultBlockArchiverDir
 	}
 	return dir
 }

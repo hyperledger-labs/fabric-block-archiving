@@ -11,7 +11,6 @@ var BlockVaultDir string
 var BlockVaultURL string
 var NumBlockfileEachArchiving int
 var NumKeepLatestBlocks int
-var ArchiverStats *BlockVaultStats
 
 type ArchiverMessage struct {
 	ChainID      string

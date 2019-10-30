@@ -15,16 +15,16 @@ import (
 
 var logger_ar = flogging.MustGetLogger("archiver.common")
 
-// InitBlockVault initializes the blockVault functions
-func InitBlockVault(metricsProvider metrics.Provider) {
-	logger_ar.Info("Archiver.InitBlockVault...")
+// InitBlockArchiver initializes the BlockArchiver functions
+func InitBlockArchiver(metricsProvider metrics.Provider) {
+	logger_ar.Info("Archiver.InitBlockArchiver...")
 
-	initBlockVaultParams()
+	initBlockArchiverParams()
 
-	logger_ar.Info("Archiver.InitBlockVault isArchiver=", blockarchive.IsArchiver, " isClient-", blockarchive.IsClient)
+	logger_ar.Info("Archiver.InitBlockArchiver isArchiver=", blockarchive.IsArchiver, " isClient-", blockarchive.IsClient)
 }
 
-func initBlockVaultParams() {
+func initBlockArchiverParams() {
 	blockarchive.IsArchiver = viper.GetBool("peer.archiver.enabled")
 	if blockarchive.IsArchiver {
 		blockarchive.NumBlockfileEachArchiving, blockarchive.NumKeepLatestBlocks = ledgerconfig.GetArchivingParameters()
@@ -32,8 +32,8 @@ func initBlockVaultParams() {
 		blockarchive.IsClient = viper.GetBool("peer.archiving.enabled")
 	}
 
-	blockarchive.BlockVaultDir = ledgerconfig.GetBlockVaultDir()
-	blockarchive.BlockVaultURL = ledgerconfig.GetBlockVaultURL()
+	blockarchive.BlockArchiverDir = ledgerconfig.GetBlockArchiverDir()
+	blockarchive.BlockArchiverURL = ledgerconfig.GetBlockArchiverURL()
 	blockarchive.BlockStorePath = ledgerconfig.GetBlockStorePath()
 
 }

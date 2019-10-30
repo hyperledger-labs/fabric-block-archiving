@@ -24,5 +24,5 @@ func TestBlockfileArchiver(t *testing.T) {
 	// viper.Set("peer.archiver.enabled", true)
 	// viper.Set("peer.archiving.enabled", false)
 
-	// InitBlockVault(provider.fakeProvider)
+	// InitBlockArchiver(provider.fakeProvider)
 }

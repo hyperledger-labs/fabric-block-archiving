@@ -73,7 +73,7 @@ func OpenFileThroughSFTP(path string) (*sftpConnInfo, error) {
 		},
 	}
 	config.SetDefaults()
-	sshConn, err := ssh.Dial("tcp", ledgerconfig.GetBlockVaultURL(), config)
+	sshConn, err := ssh.Dial("tcp", ledgerconfig.GetBlockArchiverURL(), config)
 	if err != nil {
 		return nil, err
 	}
@@ -85,7 +85,7 @@ func OpenFileThroughSFTP(path string) (*sftpConnInfo, error) {
 	}
 	// defer client.Close()
 
-	dstFilePath := filepath.Join(ledgerconfig.GetBlockVaultDir(), path)
+	dstFilePath := filepath.Join(ledgerconfig.GetBlockArchiverDir(), path)
 	dstFile, err := client.Open(dstFilePath)
 	if err != nil {
 		return nil, err
@@ -154,7 +154,7 @@ func (s *blockfileStream) nextBlockBytesAndPlacementInfo() ([]byte, *blockPlacem
 	moreContentAvailable := true
 
 	if s.sftpConnInfo != nil {
-		// Access the blockfile via blockVault
+		// Access the blockfile via BlockArchiver
 		fileInfo, err = s.sftpConnInfo.file.Stat()
 	} else {
 		fileInfo, err = s.file.Stat()
@@ -213,7 +213,7 @@ func (s *blockfileStream) nextBlockBytesAndPlacementInfo() ([]byte, *blockPlacem
 
 func (s *blockfileStream) close() error {
 	if s.sftpConnInfo != nil {
-		// Close the blockVault connection
+		// Close the BlockArchiver connection
 		if err := errors.WithStack(s.sftpConnInfo.file.Close()); err != nil {
 			logger.Error(err.Error())
 			return err

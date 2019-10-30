@@ -21,8 +21,8 @@ import (
 	"github.com/hyperledger/fabric/core/ledger/ledgerconfig"
 )
 
-// sendBlockfileToVault - Moves a blockfile into the vault
-func sendBlockfileToVault(cid string, fileNum int) (error, bool) {
+// sendBlockfileToRepo - Moves a blockfile into the repository
+func sendBlockfileToRepo(cid string, fileNum int) (error, bool) {
 
 	blockfileDir := filepath.Join(ledgerconfig.GetBlockStorePath(), ChainsDir, cid)
 	srcFilePath := deriveBlockfilePath(blockfileDir, fileNum)
@@ -43,10 +43,10 @@ func sendBlockfileToVault(cid string, fileNum int) (error, bool) {
 		},
 	}
 	config.SetDefaults()
-	blockVaultURL := blockarchive.BlockVaultURL
-	sshConn, err := ssh.Dial("tcp", blockVaultURL, config)
+	blockArchiverURL := blockarchive.BlockArchiverURL
+	sshConn, err := ssh.Dial("tcp", blockArchiverURL, config)
 	if err != nil {
-		logger_ar.Warningf("Block store server [%s] is unreachable [%s]", blockVaultURL, err.Error())
+		logger_ar.Warningf("Block store server [%s] is unreachable [%s]", blockArchiverURL, err.Error())
 		return errors.New("Server unreachable"), false
 	}
 	defer sshConn.Close()
@@ -57,9 +57,9 @@ func sendBlockfileToVault(cid string, fileNum int) (error, bool) {
 	}
 	defer client.Close()
 
-	blockVaultDir := blockarchive.BlockVaultDir
-	dstDirPath := filepath.Join(blockVaultDir, filepath.Dir(srcFilePath))
-	dstFilePath := filepath.Join(blockVaultDir, srcFilePath)
+	blockArchiverDir := blockarchive.BlockArchiverDir
+	dstDirPath := filepath.Join(blockArchiverDir, filepath.Dir(srcFilePath))
+	dstFilePath := filepath.Join(blockArchiverDir, srcFilePath)
 	client.MkdirAll(dstDirPath)
 	dstFile, err := client.Create(dstFilePath)
 	if err != nil {
@@ -72,7 +72,7 @@ func sendBlockfileToVault(cid string, fileNum int) (error, bool) {
 		panic(err)
 	}
 
-	logger_ar.Info("sendBlockfileToVault - sent blockfile to vault: ", fileNum, " written=", written)
+	logger_ar.Info("sendBlockfileToRepo - sent blockfile to repository: ", fileNum, " written=", written)
 
 	return nil, false
 }

@@ -103,13 +103,13 @@ func (arch *blockfileArchiver) archiveChannelIfNecessary() {
 	}
 }
 
-// archiveBlockfile sends a blockfile to the blockVault and deletes it if required
+// archiveBlockfile sends a blockfile to the BlockArchiver and deletes it if required
 func (arch *blockfileArchiver) archiveBlockfile(fileNum int, deleteTheFile bool) (error, bool) {
 
 	logger_ar.Info("Archiving: archiveBlockfile  deleteTheFile=", deleteTheFile)
 
-	// Send the blockfile to the vault
-	if err, alreadyArchived := sendBlockfileToVault(arch.chainID, fileNum); err != nil && alreadyArchived == false {
+	// Send the blockfile to the repository
+	if err, alreadyArchived := sendBlockfileToRepo(arch.chainID, fileNum); err != nil && alreadyArchived == false {
 		logger_ar.Error(err)
 		return err, false
 	} else if alreadyArchived == true {

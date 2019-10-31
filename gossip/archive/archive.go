@@ -2,6 +2,7 @@
 COPYRIGHT Fujitsu Software Technologies Limited 2018 All Rights Reserved.
 */
 
+// Package archive implements a hendler for ArchivedBlockfile gossip message from other peer(archiver)
 package archive
 
 import (
@@ -26,7 +27,7 @@ type gossip interface {
 
 // ledgerResources defines abilities that the ledger provides
 type ledgerResources interface {
-	// Record a blockfile as archived
+	// Delete a blockfile and record it as archived
 	SetArchived(fileNum int, deleteTheFile bool) error
 }
 
@@ -51,7 +52,7 @@ type ArchiveService interface {
 	Stop()
 }
 
-// NewArchiveService returns a new ArchiveService
+// NewArchiveService returns a new ArchiveService and starts message handler go routine
 func NewArchiveService(gossip gossip, chainID common.ChainID, ledger ledgerResources) ArchiveService {
 
 	ar := &archiveSvcImpl{
@@ -91,7 +92,7 @@ func (ar *archiveSvcImpl) startHandlingMessages() {
 	adapterCh, _ := ar.gossip.Accept(func(message interface{}) bool {
 		// Get only ArchivedBlockfile org and channel messages
 		return message.(*proto.GossipMessage).Tag == proto.GossipMessage_CHAN_AND_ORG &&
-			message.(*proto.GossipMessage).IsArchivedBlockfileMsg() &&
+			protoext.IsArchivedBlockfileMsg(message.(*proto.GossipMessage)) &&
 			bytes.Equal(message.(*proto.GossipMessage).Channel, ar.channel)
 	}, false)
 

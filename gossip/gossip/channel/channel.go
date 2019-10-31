@@ -719,7 +719,7 @@ func (gc *gossipChannel) HandleMessage(msg protoext.ReceivedMessage) {
 		}
 	}
 
-	if m.IsArchivedBlockfileMsg() {
+	if protoext.IsArchivedBlockfileMsg(m.GossipMessage) {
 		// Handling ArchivedBlockfile message
 		added := gc.archivedBlockfileMsgStore.Add(m)
 		if added {

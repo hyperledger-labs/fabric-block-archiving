@@ -140,8 +140,10 @@ type PeerLedger interface {
 	//     missing info is recorded in the ledger (or)
 	// (3) the block is committed and does not contain any pvtData.
 	DoesPvtDataInfoExist(blockNum uint64) (bool, error)
-	// SetArchived archives N th data chunk into a repository. Each data chunk is an data unit
-	// which puts together a certain amount of data from genesis one by one.
+	// SetArchived triggers the following actions:
+	// - Delete N th data chunk(ex. blockfile) that is a data unit which puts together a certain amount of block
+	// - (Not implemented) Leave a persist record which indicate that N th data chunk has been archived
+	// This interface is used from gossip when receiving a message notifying that an archive has been done.
 	SetArchived(dataChunkNo int, deleteTheChunk bool) error
 }
 

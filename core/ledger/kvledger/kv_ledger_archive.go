@@ -11,7 +11,7 @@ import (
 
 var logger_ar = flogging.MustGetLogger("archiver.archive")
 
-// SetArchived records a block as having been archived
+// SetArchived deletes a blockfile and records it as archived
 func (l *kvLedger) SetArchived(blockFileNo int, deleteTheFile bool) error {
 	logger_ar.Info("kvledger.SetArchived... blockFileNo = ", blockFileNo)
 

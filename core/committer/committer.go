@@ -60,8 +60,8 @@ type Committer interface {
 	// GetMissingPvtDataTracker return the MissingPvtDataTracker
 	GetMissingPvtDataTracker() (ledger.MissingPvtDataTracker, error)
 
-	// SetArchived internally notifies the status change, which comes from archiver via gossip protocol,
-	// to ledger component.
+	// SetArchived archives N th data chunk(ex. blockfile) into a repository. Each data chunk is an data unit
+	// which puts together a certain amount of data from genesis one by one.
 	SetArchived(blockFileNo int, deleteTheFile bool) error
 
 	// Closes committing service

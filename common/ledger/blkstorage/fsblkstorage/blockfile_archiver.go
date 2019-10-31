@@ -18,17 +18,27 @@ import (
 var logger_ar = flogging.MustGetLogger("archiver.archive")
 var logger_ar_cmn = flogging.MustGetLogger("archiver.common")
 
+//
 type blockfileArchiver struct {
-	chainID          string
-	mgr              *blockfileMgr
-	blockfileDir     string
+	// Chain ID
+	chainID string
+	// Instance pointer to blockfile manager for the chain specified with chainID
+	mgr *blockfileMgr
+	// PATH to where blockfiles are stored on the local file system
+	blockfileDir string
+	// Postfix number of the blockfile which should be archived next
 	nextBlockfileNum int
 }
 
 const (
-	maxRetryForCatchUp = 1000 // Maximum of retries for catching up with the latest blockfile to be actually archived
+	// Maximum of retries for catching up with the latest blockfile to be actually archived
+	maxRetryForCatchUp = 1000
 )
 
+// newBlockfileArchiver create a blockfile archiver instance
+// If peer runs in archiver mode, also do the following steps:
+// - Create a channel to receive a notification when blockfile is finalized
+// - Start go routine for listening to the notificationalso create a channel to receive a notification
 func newBlockfileArchiver(id string, mgr *blockfileMgr) *blockfileArchiver {
 	logger_ar.Info("newBlockfileArchiver: ", id)
 
@@ -48,6 +58,8 @@ func newBlockfileArchiver(id string, mgr *blockfileMgr) *blockfileArchiver {
 	return arch
 }
 
+// listenForBlockfiles listens to a notificationalso create a channel to receive a notification
+// The check routine to see if archiving is necessary is triggered here.
 func (arch *blockfileArchiver) listenForBlockfiles(archiverChan chan blockarchive.ArchiverMessage) {
 	logger_ar.Info("listenForBlockfiles...")
 
@@ -69,6 +81,8 @@ func (arch *blockfileArchiver) listenForBlockfiles(archiverChan chan blockarchiv
 
 }
 
+// archiveChannelIfNecessary is called every time a blockfile is finalized (reached the maximum size of data chunk).
+// If there are enough amount of blockfiles on local file system to be archived, the actual archiving routine will be triggered.
 func (arch *blockfileArchiver) archiveChannelIfNecessary() {
 
 	chainID := arch.chainID
@@ -78,15 +92,12 @@ func (arch *blockfileArchiver) archiveChannelIfNecessary() {
 	numKeepLatestBlocks := blockarchive.NumKeepLatestBlocks
 
 	if isNeedArchiving(arch.blockfileDir, numBlockfileEachArchiving+numKeepLatestBlocks) {
-		// var err error
-
 		for i := 0; i < numBlockfileEachArchiving; i++ {
-
 			for j := 0; j < maxRetryForCatchUp; j++ {
 				// alreadyArchived == true means the blockfile has already been archived.
 				// When returning alreadyArchived = true, then retrying to the next blockfile
 				// until occuring the actual archiving within the maximum retry count
-				if err, alreadyArchived := arch.archiveBlockfile(arch.nextBlockfileNum, true); err != nil && alreadyArchived != true {
+				if alreadyArchived, err := arch.archiveBlockfile(arch.nextBlockfileNum, true); err != nil && alreadyArchived != true {
 					logger_ar.Info("Failed: Archiver")
 					break
 				} else {
@@ -103,32 +114,33 @@ func (arch *blockfileArchiver) archiveChannelIfNecessary() {
 	}
 }
 
-// archiveBlockfile sends a blockfile to the BlockArchiver and deletes it if required
-func (arch *blockfileArchiver) archiveBlockfile(fileNum int, deleteTheFile bool) (error, bool) {
+// archiveBlockfile sends a blockfile to the Block Archiver repository and deletes it if required
+func (arch *blockfileArchiver) archiveBlockfile(fileNum int, deleteTheFile bool) (bool, error) {
 
 	logger_ar.Info("Archiving: archiveBlockfile  deleteTheFile=", deleteTheFile)
 
 	// Send the blockfile to the repository
-	if err, alreadyArchived := sendBlockfileToRepo(arch.chainID, fileNum); err != nil && alreadyArchived == false {
+	if alreadyArchived, err := sendBlockfileToRepo(arch.chainID, fileNum); err != nil && alreadyArchived == false {
 		logger_ar.Error(err)
-		return err, false
+		return alreadyArchived, err
 	} else if alreadyArchived == true {
 		logger_ar.Infof("[blockfile_%06d] Already archived. Skip...", fileNum)
-		return nil, true
+		return alreadyArchived, nil
 	}
 
-	// Initiate a gossip message to let the other peers know...
+	// Initiate and send a gossip message to let the other peers know...
 	arch.sendArchivedMessage(fileNum)
 
 	// Record the fact that the blockfile has been archived, and delete it locally if required
 	if err := arch.SetBlockfileArchived(fileNum, deleteTheFile); err != nil {
 		logger_ar.Error(err)
-		return err, false
+		return false, err
 	}
 
-	return nil, false
+	return false, nil
 }
 
+// sendArchivedMessage initiates and sends a gossip message to let the other peers know...
 func (arch *blockfileArchiver) sendArchivedMessage(fileNum int) {
 	logger_ar.Info("sendArchivedMessage...")
 
@@ -137,7 +149,7 @@ func (arch *blockfileArchiver) sendArchivedMessage(fileNum int) {
 	service.GetGossipService().Gossip(gossipMsg)
 }
 
-// From blocksprovider.go
+// Based on createGossipMsg @ blocksprovider.go
 func (arch *blockfileArchiver) createGossipMsg(fileNum int) *gossip_proto.GossipMessage {
 	fnum := uint64(fileNum)
 	gossipMsg := &gossip_proto.GossipMessage{
@@ -153,7 +165,7 @@ func (arch *blockfileArchiver) createGossipMsg(fileNum int) *gossip_proto.Gossip
 	return gossipMsg
 }
 
-// SetBlockfileArchived records a block as having been archived
+// SetBlockfileArchived deletes a blockfile and records it as having been archived
 func (arch *blockfileArchiver) SetBlockfileArchived(blockFileNo int, deleteTheFile bool) error {
 	logger_ar_cmn.Info("blockfileArchiver.SetBlockfileArchived... blockFileNo = ", blockFileNo)
 
@@ -193,37 +205,21 @@ func (arch *blockfileArchiver) deleteArchivedBlockfile(fileNum int) error {
 	return nil
 }
 
-func getFileList(folderPath string) []string {
-	logger_ar.Debugf("folderPath=%s", folderPath)
-	var fileList []string
-	files, err := ioutil.ReadDir(folderPath)
-	if err != nil {
-		logger_ar.Error(err)
-		return fileList
-	}
-	for _, f := range files {
-		logger_ar.Debugf("Append file : %s", f.Name())
-		fileList = append(fileList, f.Name())
-	}
-	return fileList
-}
-
 // isNeedArchiving - returns whether archiving should be triggered or not
 func isNeedArchiving(blockfileFolder string, keepFileNum int) bool {
 	logger_ar.Debugf("blockfileFolder=%s, keepFileNum=%d", blockfileFolder, keepFileNum)
 
-	var allFileList []string
-	allFileList = getFileList(blockfileFolder)
-	if len(allFileList) == 0 {
-		logger_ar.Debug("There is no blockfile yet")
+	files, err := ioutil.ReadDir(blockfileFolder)
+	if err != nil {
+		logger_ar.Error(err)
 		return false
 	}
 
-	if len(allFileList) > keepFileNum {
-		logger_ar.Debugf("%d blockfile(s) should be archived", len(allFileList)-keepFileNum)
+	if len(files) > keepFileNum {
+		logger_ar.Debugf("%d blockfile(s) should be archived", len(files)-keepFileNum)
 		return true
-	} else {
-		logger_ar.Debug("There is no blockfile to be archived yet")
-		return false
 	}
+
+	logger_ar.Debug("There is no blockfile to be archived yet")
+	return false
 }

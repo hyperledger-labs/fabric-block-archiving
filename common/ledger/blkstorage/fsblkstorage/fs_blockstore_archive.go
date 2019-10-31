@@ -21,15 +21,15 @@ import (
 	"github.com/hyperledger/fabric/core/ledger/ledgerconfig"
 )
 
-// sendBlockfileToRepo - Moves a blockfile into the repository
-func sendBlockfileToRepo(cid string, fileNum int) (error, bool) {
+// sendBlockfileToRepo - Moves a blockfile into the repository via ssh
+func sendBlockfileToRepo(cid string, fileNum int) (bool, error) {
 
 	blockfileDir := filepath.Join(ledgerconfig.GetBlockStorePath(), ChainsDir, cid)
 	srcFilePath := deriveBlockfilePath(blockfileDir, fileNum)
 	srcFile, err := os.Open(srcFilePath)
 	if err != nil {
 		logger_ar.Warningf("Already archived : blockfileDir [%s] fileNum [%d]", blockfileDir, fileNum)
-		return errors.New("Already archived"), true
+		return true, errors.New("Already archived")
 	}
 	defer srcFile.Close()
 
@@ -47,7 +47,7 @@ func sendBlockfileToRepo(cid string, fileNum int) (error, bool) {
 	sshConn, err := ssh.Dial("tcp", blockArchiverURL, config)
 	if err != nil {
 		logger_ar.Warningf("Block store server [%s] is unreachable [%s]", blockArchiverURL, err.Error())
-		return errors.New("Server unreachable"), false
+		return false, errors.New("Server unreachable")
 	}
 	defer sshConn.Close()
 
@@ -74,9 +74,10 @@ func sendBlockfileToRepo(cid string, fileNum int) (error, bool) {
 
 	logger_ar.Info("sendBlockfileToRepo - sent blockfile to repository: ", fileNum, " written=", written)
 
-	return nil, false
+	return false, nil
 }
 
+// notifyArchiver notifies the finalization of blockfile via channel. It's called blockfile manager.
 func (mgr *blockfileMgr) notifyArchiver(fileNum int) {
 	logger_ar.Info("mgr.notifyArchiver...")
 	arChan := mgr.archiverChan

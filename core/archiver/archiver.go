@@ -2,6 +2,7 @@
 COPYRIGHT Fujitsu Software Technologies Limited 2018 All Rights Reserved.
 */
 
+// Package archiver initializes blockarchive package
 package archiver
 
 import (

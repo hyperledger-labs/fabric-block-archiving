@@ -1,3 +1,5 @@
+// +build blkarchivedbg
+
 /*
 COPYRIGHT Fujitsu Software Technologies Limited 2018 All Rights Reserved.
 */

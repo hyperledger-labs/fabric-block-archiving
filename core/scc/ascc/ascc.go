@@ -26,13 +26,10 @@ import (
 	proto "github.com/golang/protobuf/proto"
 	"github.com/hyperledger/fabric/common/flogging"
 	"github.com/hyperledger/fabric/common/ledger/util/ledgerfsck"
-	"github.com/hyperledger/fabric/common/metrics"
 	"github.com/hyperledger/fabric/core/chaincode/shim"
 	"github.com/hyperledger/fabric/core/peer"
 	pbl "github.com/hyperledger/fabric/protos/ledger/archive"
 	pb "github.com/hyperledger/fabric/protos/peer"
-
-	"github.com/hyperledger/fabric/core/archiver"
 )
 
 var logger_ar = flogging.MustGetLogger("archiver.cc")
@@ -46,14 +43,10 @@ const (
 type scc struct{}
 
 // New returns an implementation of the chaincode interface
-func New(metricsProvider metrics.Provider) *ArchiveSysCC {
+func New() *ArchiveSysCC {
 	logger_ar.Info("New")
 
 	ascc := &ArchiveSysCC{}
-
-	once.Do(func() {
-		archiver.InitBlockArchiver(metricsProvider)
-	})
 
 	return ascc
 }

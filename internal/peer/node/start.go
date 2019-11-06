@@ -674,7 +674,7 @@ func serve(args []string) error {
 	if maxConcurrency := coreConfig.LimitsConcurrencyQSCC; maxConcurrency != 0 {
 		qsccInst = scc.Throttle(maxConcurrency, qsccInst)
 	}
-	asccInst := ascc.New(opsSystem.Provider)
+	asccInst := ascc.New()
 
 	pb.RegisterChaincodeSupportServer(ccSrv.Server(), ccSupSrv)
 

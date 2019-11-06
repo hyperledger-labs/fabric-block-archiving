@@ -11,13 +11,12 @@ import (
 
 	"github.com/hyperledger/fabric/common/flogging"
 	"github.com/hyperledger/fabric/common/ledger/blockarchive"
-	"github.com/hyperledger/fabric/common/metrics"
 )
 
 var logger_ar = flogging.MustGetLogger("archiver.common")
 
 // InitBlockArchiver initializes the BlockArchiver functions
-func InitBlockArchiver(metricsProvider metrics.Provider) {
+func InitBlockArchiver() {
 	logger_ar.Info("Archiver.InitBlockArchiver...")
 
 	initBlockArchiverParams()

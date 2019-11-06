@@ -85,6 +85,7 @@ import (
 	"github.com/hyperledger/fabric/protoutil"
 	"github.com/hyperledger/fabric/token/server"
 	"github.com/hyperledger/fabric/token/tms/manager"
+	"github.com/hyperledger/fabric/core/archiver"
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
@@ -399,7 +400,7 @@ func serve(args []string) error {
 	if maxConcurrency := viper.GetInt("peer.limits.concurrency.qscc"); maxConcurrency != 0 {
 		qsccInst = scc.Throttle(maxConcurrency, qsccInst)
 	}
-	asccInst := ascc.New(opsSystem.Provider)
+	asccInst := ascc.New()
 
 	//Now that chaincode is initialized, register all system chaincodes.
 	sccs := scc.CreatePluginSysCCs(sccp)
@@ -543,6 +544,8 @@ func serve(args []string) error {
 		syscall.SIGINT:  func() { serve <- nil },
 		syscall.SIGTERM: func() { serve <- nil },
 	}))
+
+	archiver.InitBlockArchiver()
 
 	logger.Infof("Started peer with ID=[%s], network ID=[%s], address=[%s]", peerEndpoint.Id, networkID, peerEndpoint.Address)
 

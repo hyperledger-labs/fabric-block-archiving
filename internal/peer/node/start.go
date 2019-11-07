@@ -1,5 +1,3 @@
-// +build !blkarchivedbg
-
 /*
 Copyright IBM Corp. All Rights Reserved.
 
@@ -35,6 +33,7 @@ import (
 	"github.com/hyperledger/fabric/core/aclmgmt"
 	"github.com/hyperledger/fabric/core/aclmgmt/resources"
 	"github.com/hyperledger/fabric/core/admin"
+	"github.com/hyperledger/fabric/core/archiver"
 	cc "github.com/hyperledger/fabric/core/cclifecycle"
 	"github.com/hyperledger/fabric/core/chaincode"
 	"github.com/hyperledger/fabric/core/chaincode/accesscontrol"
@@ -86,7 +85,6 @@ import (
 	"github.com/hyperledger/fabric/protoutil"
 	"github.com/hyperledger/fabric/token/server"
 	"github.com/hyperledger/fabric/token/tms/manager"
-	"github.com/hyperledger/fabric/core/archiver"
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
@@ -412,6 +410,9 @@ func serve(args []string) error {
 	// start the chaincode specific gRPC listening service
 	go ccSrv.Start()
 
+	// initialize archiving parameters
+	archiver.InitBlockArchiver()
+
 	logger.Debugf("Running peer")
 
 	// Start the Admin server
@@ -544,8 +545,6 @@ func serve(args []string) error {
 		syscall.SIGINT:  func() { serve <- nil },
 		syscall.SIGTERM: func() { serve <- nil },
 	}))
-
-	archiver.InitBlockArchiver()
 
 	logger.Infof("Started peer with ID=[%s], network ID=[%s], address=[%s]", peerEndpoint.Id, networkID, peerEndpoint.Address)
 

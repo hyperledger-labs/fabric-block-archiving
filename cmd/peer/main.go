@@ -1,5 +1,3 @@
-// +build !blkarchivedbg
-
 /*
 Copyright IBM Corp. All Rights Reserved.
 

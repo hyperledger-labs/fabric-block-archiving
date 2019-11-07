@@ -1,5 +1,3 @@
-// +build !blkarchivedbg
-
 /*
 Copyright IBM Corp. All Rights Reserved.
 
@@ -42,6 +40,7 @@ import (
 	"github.com/hyperledger/fabric/common/metrics"
 	"github.com/hyperledger/fabric/common/policies"
 	"github.com/hyperledger/fabric/core/aclmgmt"
+	"github.com/hyperledger/fabric/core/archiver"
 	"github.com/hyperledger/fabric/core/cclifecycle"
 	"github.com/hyperledger/fabric/core/chaincode"
 	"github.com/hyperledger/fabric/core/chaincode/accesscontrol"
@@ -680,6 +679,9 @@ func serve(args []string) error {
 
 	// start the chaincode specific gRPC listening service
 	go ccSrv.Start()
+
+	// initialize archiving parameters
+	archiver.InitBlockArchiver()
 
 	logger.Debugf("Running peer")
 

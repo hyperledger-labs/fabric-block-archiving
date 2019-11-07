@@ -20,7 +20,7 @@ WORKDIR $GOPATH/src/github.com/hyperledger/fabric
 
 FROM golang as peer
 ARG GO_TAGS
-RUN make peer GO_TAGS=${GO_TAGS}
+RUN make peer ledgerfsck GO_TAGS=${GO_TAGS}
 
 FROM peer-base
 ENV FABRIC_CFG_PATH /etc/hyperledger/fabric

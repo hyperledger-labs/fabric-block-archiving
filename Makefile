@@ -90,6 +90,7 @@ pkgmap.discover       := $(PKGNAME)/cmd/discover
 pkgmap.idemixgen      := $(PKGNAME)/cmd/idemixgen
 pkgmap.orderer        := $(PKGNAME)/cmd/orderer
 pkgmap.peer           := $(PKGNAME)/cmd/peer
+pkgmap.ledgerfsck     := $(PKGNAME)/cmd/ledgerfsck
 
 .DEFAULT_GOAL := all
 

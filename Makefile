@@ -93,7 +93,7 @@ PROTOS = $(shell git ls-files *.proto | grep -Ev 'vendor/|testdata/')
 PROJECT_FILES = $(shell git ls-files  | grep -Ev '^integration/|^vagrant/|.png$|^LICENSE|^vendor/')
 IMAGES = peer orderer baseos ccenv buildenv tools blkarchiver-repo
 RELEASE_PLATFORMS = windows-amd64 darwin-amd64 linux-amd64 linux-s390x linux-ppc64le
-RELEASE_PKGS = configtxgen cryptogen idemixgen discover token configtxlator peer orderer
+RELEASE_PKGS = configtxgen cryptogen idemixgen discover token configtxlator peer orderer ledgerfsck
 RELEASE_IMAGES = peer orderer tools ccenv baseos
 
 pkgmap.cryptogen      := $(PKGNAME)/cmd/cryptogen
@@ -104,6 +104,7 @@ pkgmap.peer           := $(PKGNAME)/cmd/peer
 pkgmap.orderer        := $(PKGNAME)/orderer
 pkgmap.discover       := $(PKGNAME)/cmd/discover
 pkgmap.token          := $(PKGNAME)/cmd/token
+pkgmap.ledgerfsck     := $(PKGNAME)/cmd/ledgerfsck
 
 include docker-env.mk
 
@@ -187,6 +188,9 @@ discover: $(BUILD_DIR)/bin/discover
 
 token: GO_LDFLAGS=-X $(pkgmap.$(@F))/metadata.Version=$(PROJECT_VERSION)
 token: $(BUILD_DIR)/bin/token
+
+ledgerfsck: GO_LDFLAGS=-X $(pkgmap.$(@F))/metadata.Version=$(PROJECT_VERSION)
+ledgerfsck: $(BUILD_DIR)/bin/ledgerfsck
 
 blkarchiver-repo-docker: $(BUILD_DIR)/images/blkarchiver-repo/$(DUMMY)
 
@@ -323,6 +327,11 @@ release/%/bin/discover: $(PROJECT_FILES)
 	$(CGO_FLAGS) GOOS=$(GOOS) GOARCH=$(GOARCH) go build -o $(abspath $@) -tags "$(GO_TAGS)" -ldflags "$(GO_LDFLAGS)" $(pkgmap.$(@F))
 
 release/%/bin/token: $(PROJECT_FILES)
+	@echo "Building $@ for $(GOOS)-$(GOARCH)"
+	mkdir -p $(@D)
+	$(CGO_FLAGS) GOOS=$(GOOS) GOARCH=$(GOARCH) go build -o $(abspath $@) -tags "$(GO_TAGS)" -ldflags "$(GO_LDFLAGS)" $(pkgmap.$(@F))
+
+release/%/bin/ledgerfsck: $(PROJECT_FILES)
 	@echo "Building $@ for $(GOOS)-$(GOARCH)"
 	mkdir -p $(@D)
 	$(CGO_FLAGS) GOOS=$(GOOS) GOARCH=$(GOARCH) go build -o $(abspath $@) -tags "$(GO_TAGS)" -ldflags "$(GO_LDFLAGS)" $(pkgmap.$(@F))

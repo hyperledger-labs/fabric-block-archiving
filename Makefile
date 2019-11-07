@@ -81,8 +81,7 @@ METADATA_VAR += BaseDockerNamespace=$(BASE_DOCKER_NS)
 GO_VER = $(shell grep "GO_VER" ci.properties |cut -d'=' -f2-)
 GO_LDFLAGS = $(patsubst %,-X $(PKGNAME)/common/metadata.%,$(METADATA_VAR))
 
-GO_TAGS ?= blkarchivedbg
-# GO_TAGS ?=
+GO_TAGS ?=
 
 EXECUTABLES ?= go docker git curl
 K := $(foreach exec,$(EXECUTABLES),\

@@ -96,7 +96,7 @@ type gossipServiceImpl struct {
 	chains          map[string]state.GossipStateProvider
 	leaderElection  map[string]election.LeaderElectionService
 	deliveryService map[string]deliverclient.DeliverService
-	archiveService  map[string]archive.ArchiveService
+	archiveService  map[string]archive.Service
 	deliveryFactory DeliveryServiceFactory
 	lock            sync.RWMutex
 	mcs             api.MessageCryptoService
@@ -195,7 +195,7 @@ func InitGossipServiceCustomDeliveryFactory(
 			privateHandlers: make(map[string]privateHandler),
 			chains:          make(map[string]state.GossipStateProvider),
 			leaderElection:  make(map[string]election.LeaderElectionService),
-			archiveService:  make(map[string]archive.ArchiveService),
+			archiveService:  make(map[string]archive.Service),
 			deliveryService: make(map[string]deliverclient.DeliverService),
 			deliveryFactory: factory,
 			peerIdentity:    serializedIdentity,
@@ -444,8 +444,8 @@ func (g *gossipServiceImpl) newLeaderElectionComponent(chainID string, callback 
 	return election.NewLeaderElectionService(adapter, string(PKIid), callback, config)
 }
 
-func (g *gossipServiceImpl) newArchiveComponent(chainID string, ledger privdata2.Coordinator) archive.ArchiveService {
-	return archive.NewArchiveService(g, gossipCommon.ChainID(chainID), ledger)
+func (g *gossipServiceImpl) newArchiveComponent(chainID string, ledger privdata2.Coordinator) archive.Service {
+	return archive.NewService(g, gossipCommon.ChainID(chainID), ledger)
 }
 
 func (g *gossipServiceImpl) amIinChannel(myOrg string, config Config) bool {

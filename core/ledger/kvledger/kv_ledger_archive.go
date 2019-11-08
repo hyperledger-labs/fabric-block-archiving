@@ -9,11 +9,11 @@ import (
 	"github.com/hyperledger/fabric/common/ledger/blockarchive"
 )
 
-var logger_ar = flogging.MustGetLogger("archiver.archive")
+var loggerArchive = flogging.MustGetLogger("archiver.archive")
 
 // SetArchived deletes a blockfile and records it as archived
 func (l *kvLedger) SetArchived(blockFileNo int, deleteTheFile bool) error {
-	logger_ar.Info("kvledger.SetArchived... blockFileNo = ", blockFileNo)
+	loggerArchive.Info("kvledger.SetArchived... blockFileNo = ", blockFileNo)
 
 	if blockarchive.IsClient || blockarchive.IsArchiver {
 		return l.blockStore.SetBlockArchived(blockFileNo, deleteTheFile)

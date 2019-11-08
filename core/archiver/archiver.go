@@ -13,15 +13,15 @@ import (
 	"github.com/hyperledger/fabric/common/ledger/blockarchive"
 )
 
-var logger_ar = flogging.MustGetLogger("archiver.common")
+var loggerArchive = flogging.MustGetLogger("archiver.common")
 
 // InitBlockArchiver initializes the BlockArchiver functions
 func InitBlockArchiver() {
-	logger_ar.Info("Archiver.InitBlockArchiver...")
+	loggerArchive.Info("Archiver.InitBlockArchiver...")
 
 	initBlockArchiverParams()
 
-	logger_ar.Info("Archiver.InitBlockArchiver isArchiver=", blockarchive.IsArchiver, " isClient-", blockarchive.IsClient)
+	loggerArchive.Info("Archiver.InitBlockArchiver isArchiver=", blockarchive.IsArchiver, " isClient-", blockarchive.IsClient)
 }
 
 func initBlockArchiverParams() {

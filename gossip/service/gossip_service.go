@@ -164,7 +164,7 @@ type GossipService struct {
 	chains          map[string]state.GossipStateProvider
 	leaderElection  map[string]election.LeaderElectionService
 	deliveryService map[string]deliverservice.DeliverService
-	archiveService  map[string]archive.ArchiveService
+	archiveService  map[string]archive.Service
 	deliveryFactory DeliveryServiceFactory
 	lock            sync.RWMutex
 	mcs             api.MessageCryptoService
@@ -238,7 +238,7 @@ func New(
 		privateHandlers: make(map[string]privateHandler),
 		chains:          make(map[string]state.GossipStateProvider),
 		leaderElection:  make(map[string]election.LeaderElectionService),
-		archiveService:  make(map[string]archive.ArchiveService),
+		archiveService:  make(map[string]archive.Service),
 		deliveryService: make(map[string]deliverservice.DeliverService),
 		deliveryFactory: &deliveryFactoryImpl{
 			signer:               peerIdentity,
@@ -466,7 +466,7 @@ func (g *GossipService) newLeaderElectionComponent(channelID string, callback fu
 }
 
 func (g *gossipServiceImpl) newArchiveComponent(channelID string, ledger privdata2.Coordinator) archive.ArchiveService {
-	return archive.NewArchiveService(g, gossipCommon.ChannelID(channelID), ledger)
+	return archive.NewService(g, gossipCommon.ChannelID(channelID), ledger)
 }
 
 func (g *GossipService) amIinChannel(myOrg string, config Config) bool {

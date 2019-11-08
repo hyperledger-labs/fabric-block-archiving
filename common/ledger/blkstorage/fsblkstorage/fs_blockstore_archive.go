@@ -28,7 +28,7 @@ func sendBlockfileToRepo(cid string, fileNum int) (bool, error) {
 	srcFilePath := deriveBlockfilePath(blockfileDir, fileNum)
 	srcFile, err := os.Open(srcFilePath)
 	if err != nil {
-		logger_ar.Warningf("Already archived : blockfileDir [%s] fileNum [%d]", blockfileDir, fileNum)
+		loggerArchive.Warningf("Already archived : blockfileDir [%s] fileNum [%d]", blockfileDir, fileNum)
 		return true, errors.New("Already archived")
 	}
 	defer srcFile.Close()
@@ -46,7 +46,7 @@ func sendBlockfileToRepo(cid string, fileNum int) (bool, error) {
 	blockArchiverURL := blockarchive.BlockArchiverURL
 	sshConn, err := ssh.Dial("tcp", blockArchiverURL, config)
 	if err != nil {
-		logger_ar.Warningf("Block store server [%s] is unreachable [%s]", blockArchiverURL, err.Error())
+		loggerArchive.Warningf("Block store server [%s] is unreachable [%s]", blockArchiverURL, err.Error())
 		return false, errors.New("Server unreachable")
 	}
 	defer sshConn.Close()
@@ -72,22 +72,22 @@ func sendBlockfileToRepo(cid string, fileNum int) (bool, error) {
 		panic(err)
 	}
 
-	logger_ar.Info("sendBlockfileToRepo - sent blockfile to repository: ", fileNum, " written=", written)
+	loggerArchive.Info("sendBlockfileToRepo - sent blockfile to repository: ", fileNum, " written=", written)
 
 	return false, nil
 }
 
 // notifyArchiver notifies the finalization of blockfile via channel. It's called blockfile manager.
 func (mgr *blockfileMgr) notifyArchiver(fileNum int) {
-	logger_ar.Info("mgr.notifyArchiver...")
+	loggerArchive.Info("mgr.notifyArchiver...")
 	arChan := mgr.archiverChan
 	if arChan != nil {
-		logger_ar.Info("mgr.notifyArchiver - sending message...")
-		msg := blockarchive.ArchiverMessage{mgr.chainID, fileNum}
+		loggerArchive.Info("mgr.notifyArchiver - sending message...")
+		msg := blockarchive.ArchiverMessage{ChainID: mgr.chainID, BlockfileNum: fileNum}
 		select {
 		case arChan <- msg:
 		default:
-			logger_ar.Warning("mgr.notifyArchiver - message not sent!!!")
+			loggerArchive.Warning("mgr.notifyArchiver - message not sent!!!")
 		}
 	}
 }

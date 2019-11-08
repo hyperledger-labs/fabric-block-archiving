@@ -46,14 +46,14 @@ func (mi *msgImpl) BlockfileNo() uint64 {
 	return mi.msg.GetArchivedBlockfile().BlockfileNo
 }
 
-// ArchiveService is the object that controls the Archive gossip service
-type ArchiveService interface {
-	// Stop stops the ArchiveService
+// Service is the object that controls the Archive gossip service
+type Service interface {
+	// Stop stops the Service
 	Stop()
 }
 
-// NewArchiveService returns a new ArchiveService and starts message handler go routine
-func NewArchiveService(gossip gossip, chainID common.ChainID, ledger ledgerResources) ArchiveService {
+// NewService returns a new Service and starts message handler go routine
+func NewService(gossip gossip, chainID common.ChainID, ledger ledgerResources) Service {
 
 	ar := &archiveSvcImpl{
 		stopChan: make(chan struct{}, 1),
@@ -68,7 +68,7 @@ func NewArchiveService(gossip gossip, chainID common.ChainID, ledger ledgerResou
 	return ar
 }
 
-// archiveSvcImpl is an implementation of an ArchiveService
+// archiveSvcImpl is an implementation of an Service
 type archiveSvcImpl struct {
 	sync.Mutex
 	stopChan chan struct{}
@@ -138,7 +138,7 @@ func (ar *archiveSvcImpl) handleMessage(msg Msg) {
 	ar.ledger.SetArchived(int(fileNum), true)
 }
 
-// Stop stops the ArchiveService
+// Stop stops the Service
 func (ar *archiveSvcImpl) Stop() {
 	ar.logger.Debug("Stop - Entering")
 	defer ar.logger.Debug("Stop - Exiting")

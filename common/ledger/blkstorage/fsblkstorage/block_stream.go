@@ -60,9 +60,9 @@ type sftpConnInfo struct {
 	client *ssh.Client
 }
 
-func OpenFileThroughSFTP(path string) (*sftpConnInfo, error) {
+func openFileThroughSFTP(path string) (*sftpConnInfo, error) {
 
-	logger.Info("OpenFileThroughSFTP")
+	logger.Info("openFileThroughSFTP")
 	config := &ssh.ClientConfig{
 		User: "root",
 		HostKeyCallback: func(hostname string, remote net.Addr, key ssh.PublicKey) error {
@@ -109,7 +109,7 @@ func newBlockfileStream(rootDir string, fileNum int, startOffset int64) (*blockf
 	var connInfo *sftpConnInfo
 	var err error
 	if file, err = os.OpenFile(filePath, os.O_RDONLY, 0600); err != nil {
-		if connInfo, err = OpenFileThroughSFTP(filePath); err != nil {
+		if connInfo, err = openFileThroughSFTP(filePath); err != nil {
 			logger.Error(err)
 			return nil, errors.Wrapf(err, "error opening block file %s", filePath)
 		}
@@ -219,9 +219,9 @@ func (s *blockfileStream) close() error {
 			return err
 		}
 		return errors.WithStack(s.sftpConnInfo.client.Close())
-	} else {
-		return errors.WithStack(s.file.Close())
 	}
+
+	return errors.WithStack(s.file.Close())
 }
 
 ///////////////////////////////////

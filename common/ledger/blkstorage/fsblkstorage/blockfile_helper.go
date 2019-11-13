@@ -20,7 +20,7 @@ import (
 // constructCheckpointInfoFromBlockFiles scans the last blockfile (if any) and construct the checkpoint info
 // if the last file contains no block or only a partially written block (potentially because of a crash while writing block to the file),
 // this scans the second last file (if any)
-func constructCheckpointInfoFromBlockFiles(rootDir string) (*checkpointInfo, error) {
+func constructCheckpointInfoFromBlockFiles(rootDir string, archiveConf *ArchiveConf) (*checkpointInfo, error) {
 	logger.Debugf("Retrieving checkpoint info from block files")
 	var lastFileNum int
 	var numBlocksInFile int
@@ -44,7 +44,7 @@ func constructCheckpointInfoFromBlockFiles(rootDir string) (*checkpointInfo, err
 
 	fileInfo := getFileInfoOrPanic(rootDir, lastFileNum)
 	logger.Debugf("Last Block file info: FileName=[%s], FileSize=[%d]", fileInfo.Name(), fileInfo.Size())
-	if lastBlockBytes, endOffsetLastBlock, numBlocksInFile, err = scanForLastCompleteBlock(rootDir, lastFileNum, 0); err != nil {
+	if lastBlockBytes, endOffsetLastBlock, numBlocksInFile, err = scanForLastCompleteBlock(rootDir, lastFileNum, 0, archiveConf); err != nil {
 		logger.Errorf("Error scanning last file [num=%d]: %s", lastFileNum, err)
 		return nil, err
 	}
@@ -53,7 +53,7 @@ func constructCheckpointInfoFromBlockFiles(rootDir string) (*checkpointInfo, err
 		secondLastFileNum := lastFileNum - 1
 		fileInfo := getFileInfoOrPanic(rootDir, secondLastFileNum)
 		logger.Debugf("Second last Block file info: FileName=[%s], FileSize=[%d]", fileInfo.Name(), fileInfo.Size())
-		if lastBlockBytes, _, _, err = scanForLastCompleteBlock(rootDir, secondLastFileNum, 0); err != nil {
+		if lastBlockBytes, _, _, err = scanForLastCompleteBlock(rootDir, secondLastFileNum, 0, archiveConf); err != nil {
 			logger.Errorf("Error scanning second last file [num=%d]: %s", secondLastFileNum, err)
 			return nil, err
 		}

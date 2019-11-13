@@ -18,13 +18,11 @@ import (
 	"golang.org/x/crypto/ssh"
 
 	"github.com/hyperledger/fabric/common/ledger/blockarchive"
-	"github.com/hyperledger/fabric/core/ledger/ledgerconfig"
 )
 
 // sendBlockfileToRepo - Moves a blockfile into the repository via ssh
-func sendBlockfileToRepo(cid string, fileNum int) (bool, error) {
+func sendBlockfileToRepo(blockfileDir string, fileNum int) (bool, error) {
 
-	blockfileDir := filepath.Join(ledgerconfig.GetBlockStorePath(), ChainsDir, cid)
 	srcFilePath := deriveBlockfilePath(blockfileDir, fileNum)
 	srcFile, err := os.Open(srcFilePath)
 	if err != nil {

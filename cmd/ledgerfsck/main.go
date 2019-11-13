@@ -52,6 +52,21 @@ func (fsck *ledgerFsck) Manager(channelID string) (policies.Manager, bool) {
 
 // Initialize
 func (fsck *ledgerFsck) Initialize() error {
+	loggingSpec := os.Getenv("FABRIC_LOGGING_SPEC")
+	if loggingSpec == "" {
+		loggingSpec = "ledgerfsck=debug:fatal"
+	}
+	loggingFormat := os.Getenv("FABRIC_LOGGING_FORMAT")
+	if loggingFormat == "" {
+		loggingFormat = "%{color}%{time:2006-01-02 15:04:05.000 MST} [%{module}] %{shortfunc} -> %{level:.4s} %{id:03x}%{color:reset} %{message}"
+	}
+
+	flogging.Init(flogging.Config{
+		Format:  loggingFormat,
+		Writer:  os.Stdout,
+		LogSpec: loggingSpec,
+	})
+
 	// Initialize viper configuration
 	viper.SetEnvPrefix("core")
 	viper.AutomaticEnv()
@@ -86,10 +101,10 @@ func (fsck *ledgerFsck) ReadConfiguration() error {
 		return errors.New(errMsg)
 	}
 
-	logger.Infof("channel name = %s", fsck.channelName)
-	logger.Infof("MSP folder path = %s", fsck.mspConfigPath)
-	logger.Infof("MSPID = %s", fsck.mspID)
-	logger.Infof("MSP type = %s", fsck.mspType)
+	logger.Debugf("channel name = %s", fsck.channelName)
+	logger.Debugf("MSP folder path = %s", fsck.mspConfigPath)
+	logger.Debugf("MSPID = %s", fsck.mspID)
+	logger.Debugf("MSP type = %s", fsck.mspType)
 	return nil
 }
 
@@ -238,7 +253,7 @@ func (fsck *ledgerFsck) GetLatestChannelConfigBundle() error {
 		return err
 	}
 
-	logger.Info("reading configuration from state DB")
+	logger.Debug("reading configuration from state DB")
 	confBytes, err := qe.GetState("", "resourcesconfigtx.CHANNEL_CONFIG_KEY")
 	if err != nil {
 		logger.Errorf("failed to read channel config, error %s", err)
@@ -252,7 +267,7 @@ func (fsck *ledgerFsck) GetLatestChannelConfigBundle() error {
 	}
 
 	if conf != nil {
-		logger.Info("initialize channel config bundle")
+		logger.Debug("initialize channel config bundle")
 		fsck.bundle, err = channelconfig.NewBundle(fsck.channelName, conf)
 		if err != nil {
 			return err
@@ -260,13 +275,13 @@ func (fsck *ledgerFsck) GetLatestChannelConfigBundle() error {
 	} else {
 		// Config was only stored in the statedb starting with v1.1 binaries
 		// so if the config is not found there, extract it manually from the config block
-		logger.Info("configuration wasn't stored in state DB retrieving config envelope from ledger")
+		logger.Debug("configuration wasn't stored in state DB retrieving config envelope from ledger")
 		envelopeConfig, err := protoutil.ExtractEnvelope(cb, 0)
 		if err != nil {
 			return err
 		}
 
-		logger.Info("initialize channel config bundle from config transaction")
+		logger.Debug("initialize channel config bundle from config transaction")
 		fsck.bundle, err = channelconfig.NewBundleFromEnvelope(envelopeConfig)
 		if err != nil {
 			return err
@@ -283,12 +298,13 @@ func (fsck *ledgerFsck) GetLatestChannelConfigBundle() error {
 func (fsck *ledgerFsck) Verify() {
 	blockchainInfo, err := fsck.ledger.GetBlockchainInfo()
 	if err != nil {
-		logger.Errorf("could not obtain blockchain information "+
+		logger.Debugf("could not obtain blockchain information "+
 			"channel name %s, due to %s", fsck.channelName, err)
+		logger.Infof("FAIL")
 		os.Exit(-1)
 	}
 
-	logger.Infof("ledger height of channel %s, is %d\n", fsck.channelName, blockchainInfo.Height)
+	logger.Debugf("ledger height of channel %s, is %d\n", fsck.channelName, blockchainInfo.Height)
 
 	signer := mgmt.GetLocalSigningIdentityOrPanic()
 
@@ -299,7 +315,8 @@ func (fsck *ledgerFsck) Verify() {
 
 	block, err := fsck.ledger.GetBlockByNumber(uint64(0))
 	if err != nil {
-		logger.Errorf("failed to read genesis block number, with error", err)
+		logger.Debugf("failed to read genesis block number, with error", err)
+		logger.Infof("FAIL")
 		os.Exit(-1)
 	}
 
@@ -310,33 +327,38 @@ func (fsck *ledgerFsck) Verify() {
 	for blockIndex := uint64(1); blockIndex < blockchainInfo.Height; blockIndex++ {
 		block, err := fsck.ledger.GetBlockByNumber(blockIndex)
 		if err != nil {
-			logger.Errorf("failed to read block number %d from ledger, with error", blockIndex, err)
+			logger.Debugf("failed to read block number %d from ledger, with error", blockIndex, err)
+			logger.Infof("FAIL")
 			os.Exit(-1)
 		}
 
 		if !bytes.Equal(prevHash, block.Header.PreviousHash) {
-			logger.Errorf("block number [%d]: hash comparison has failed, previous block hash %x doesn't"+
+			logger.Debugf("block number [%d]: hash comparison has failed, previous block hash %x doesn't"+
 				" equal to hash claimed within block header %x", blockIndex, prevHash, block.Header.PreviousHash)
+			logger.Infof("FAIL")
 			os.Exit(-1)
 		} else {
-			logger.Infof("block number [%d]: previous hash matched", blockIndex)
+			logger.Debugf("block number [%d]: previous hash matched", blockIndex)
 		}
 
 		signedBlock, err := proto.Marshal(block)
 		if err != nil {
-			logger.Errorf("failed marshaling block, due to", err)
+			logger.Debugf("failed marshaling block, due to", err)
+			logger.Infof("FAIL")
 			os.Exit(-1)
 		}
 
 		if err := mcs.VerifyBlock(gossipCommon.ChainID(fsck.channelName), block.Header.Number, signedBlock); err != nil {
-			logger.Errorf("failed to verify block with sequence number %d. %s", blockIndex, err)
+			logger.Debugf("failed to verify block with sequence number %d. %s", blockIndex, err)
+			logger.Infof("FAIL")
 			os.Exit(-1)
 		} else {
-			logger.Infof("Block [seq = %d], hash = [%x], previous hash = [%x], VERIFICATION PASSED",
+			logger.Debugf("Block [seq = %d], hash = [%x], previous hash = [%x], VERIFICATION PASSED",
 				blockIndex, protoutil.BlockHeaderHash(block.Header), block.Header.PreviousHash)
 		}
 		prevHash = protoutil.BlockHeaderHash(block.Header)
 	}
+	logger.Infof("PASS")
 }
 
 func main() {

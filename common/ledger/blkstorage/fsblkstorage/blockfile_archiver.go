@@ -120,7 +120,7 @@ func (arch *blockfileArchiver) archiveBlockfile(fileNum int, deleteTheFile bool)
 	loggerArchive.Info("Archiving: archiveBlockfile  deleteTheFile=", deleteTheFile)
 
 	// Send the blockfile to the repository
-	if alreadyArchived, err := sendBlockfileToRepo(arch.chainID, fileNum); err != nil && alreadyArchived == false {
+	if alreadyArchived, err := sendBlockfileToRepo(arch.blockfileDir, fileNum); err != nil && alreadyArchived == false {
 		loggerArchive.Error(err)
 		return alreadyArchived, err
 	} else if alreadyArchived == true {

@@ -49,7 +49,12 @@ func NewProvider() *Provider {
 	}
 	indexConfig := &blkstorage.IndexConfig{AttrsToIndex: attrsToIndex}
 	blockStoreProvider := fsblkstorage.NewProvider(
-		fsblkstorage.NewConf(ledgerconfig.GetBlockStorePath(), ledgerconfig.GetMaxBlockfileSize()),
+		fsblkstorage.NewConf(
+			ledgerconfig.GetBlockStorePath(),
+			ledgerconfig.GetMaxBlockfileSize(),
+			ledgerconfig.GetBlockArchiverURL(),
+			ledgerconfig.GetBlockArchiverDir(),
+		),
 		indexConfig)
 
 	pvtStoreProvider := pvtdatastorage.NewProvider()

@@ -14,8 +14,6 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/hyperledger/fabric/core/ledger/ledgerconfig"
-
 	"github.com/golang/protobuf/proto"
 	"github.com/pkg/errors"
 	"github.com/pkg/sftp"
@@ -45,6 +43,7 @@ type blockStream struct {
 	currentFileNum    int
 	endFileNum        int
 	currentFileStream *blockfileStream
+	archiveConf       *ArchiveConf
 }
 
 // blockPlacementInfo captures the information related
@@ -60,7 +59,7 @@ type sftpConnInfo struct {
 	client *ssh.Client
 }
 
-func openFileThroughSFTP(path string) (*sftpConnInfo, error) {
+func openFileThroughSFTP(path string, archiveConf *ArchiveConf) (*sftpConnInfo, error) {
 
 	logger.Info("openFileThroughSFTP")
 	config := &ssh.ClientConfig{
@@ -73,7 +72,7 @@ func openFileThroughSFTP(path string) (*sftpConnInfo, error) {
 		},
 	}
 	config.SetDefaults()
-	sshConn, err := ssh.Dial("tcp", ledgerconfig.GetBlockArchiverURL(), config)
+	sshConn, err := ssh.Dial("tcp", archiveConf.archiveURL, config)
 	if err != nil {
 		return nil, err
 	}
@@ -85,7 +84,7 @@ func openFileThroughSFTP(path string) (*sftpConnInfo, error) {
 	}
 	// defer client.Close()
 
-	dstFilePath := filepath.Join(ledgerconfig.GetBlockArchiverDir(), path)
+	dstFilePath := filepath.Join(archiveConf.archiveDir, path)
 	dstFile, err := client.Open(dstFilePath)
 	if err != nil {
 		return nil, err
@@ -102,14 +101,14 @@ func fileSeek(s io.Seeker, startOffset int64) (int64, error) {
 ///////////////////////////////////
 // blockfileStream functions
 ////////////////////////////////////
-func newBlockfileStream(rootDir string, fileNum int, startOffset int64) (*blockfileStream, error) {
+func newBlockfileStream(rootDir string, fileNum int, startOffset int64, archiveConf *ArchiveConf) (*blockfileStream, error) {
 	filePath := deriveBlockfilePath(rootDir, fileNum)
 	logger.Debugf("newBlockfileStream(): filePath=[%s], startOffset=[%d]", filePath, startOffset)
 	var file *os.File
 	var connInfo *sftpConnInfo
 	var err error
 	if file, err = os.OpenFile(filePath, os.O_RDONLY, 0600); err != nil {
-		if connInfo, err = openFileThroughSFTP(filePath); err != nil {
+		if connInfo, err = openFileThroughSFTP(filePath, archiveConf); err != nil {
 			logger.Error(err)
 			return nil, errors.Wrapf(err, "error opening block file %s", filePath)
 		}
@@ -227,12 +226,12 @@ func (s *blockfileStream) close() error {
 ///////////////////////////////////
 // blockStream functions
 ////////////////////////////////////
-func newBlockStream(rootDir string, startFileNum int, startOffset int64, endFileNum int) (*blockStream, error) {
-	startFileStream, err := newBlockfileStream(rootDir, startFileNum, startOffset)
+func newBlockStream(rootDir string, startFileNum int, startOffset int64, endFileNum int, archiveConf *ArchiveConf) (*blockStream, error) {
+	startFileStream, err := newBlockfileStream(rootDir, startFileNum, startOffset, archiveConf)
 	if err != nil {
 		return nil, err
 	}
-	return &blockStream{rootDir, startFileNum, endFileNum, startFileStream}, nil
+	return &blockStream{rootDir, startFileNum, endFileNum, startFileStream, archiveConf}, nil
 }
 
 func (s *blockStream) moveToNextBlockfileStream() error {
@@ -241,7 +240,7 @@ func (s *blockStream) moveToNextBlockfileStream() error {
 		return err
 	}
 	s.currentFileNum++
-	if s.currentFileStream, err = newBlockfileStream(s.rootDir, s.currentFileNum, 0); err != nil {
+	if s.currentFileStream, err = newBlockfileStream(s.rootDir, s.currentFileNum, 0, s.archiveConf); err != nil {
 		return err
 	}
 	return nil

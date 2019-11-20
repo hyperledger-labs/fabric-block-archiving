@@ -1,76 +1,43 @@
-# Copyright the Hyperledger Fabric contributors. All rights reserved.
-#
-# SPDX-License-Identifier: Apache-2.0
+# Starter pipeline
+# Start with a minimal pipeline that you can customize to build and deploy your code.
+# Add steps that build, run tests, deploy, and more:
+# https://aka.ms/yaml
 
-name: $(SourceBranchName)-$(Date:yyyyMMdd)$(Rev:.rrr)
-trigger: none
-pr:
+trigger:
 - master
-- release-2.*
-
-variables:
-  GOPATH: $(Agent.BuildDirectory)/go
-  PATH: $(Agent.BuildDirectory)/go/bin:/bin:/usr/bin:/sbin:/usr/sbin:/usr/local/bin:/usr/local/sbin
-  GOVER: 1.13.4
 
 jobs:
-  - job: VerifyBuild
-    pool:
-      vmImage: ubuntu-18.04
-    steps:
-      - template: install_deps.yml
-      - checkout: self
-        path: 'go/src/github.com/hyperledger/fabric'
-        displayName: Checkout Fabric Code
-      - script: make basic-checks native
-        displayName: Run Basic Checks
-      - script: ./ci/scripts/evaluate_commits.sh
-        name: SetJobTriggers
+- job: e2e_test_BDD
+  pool:
+    vmImage: 'ubuntu-latest'
+  steps:
 
-  - job: DocBuild
-    condition: eq(dependencies.VerifyBuild.outputs['SetJobTriggers.buildDoc'], 'true')
-    dependsOn: VerifyBuild
-    pool:
-      vmImage: ubuntu-18.04
-    container:
-      image: n42org/tox:3.4.0
-    steps:
-      - checkout: self
-        path: 'go/src/github.com/hyperledger/fabric'
-        displayName: Checkout Fabric Code
-      - script: tox -edocs
-        displayName: Build Documentation
-      - publish: 'docs/_build/html'
-        displayName: Publish Documentation Artifacts
+  - task: GoTool@0
+    inputs:
+        version: '1.12'
+        goPath: '$(Pipeline.Workspace)/go'
 
-  - job: UnitTests
-    condition: eq(dependencies.VerifyBuild.outputs['SetJobTriggers.runTests'], 'true')
-    dependsOn: VerifyBuild
-    pool:
-      vmImage: ubuntu-18.04
-    steps:
-      - template: install_deps.yml
-      - checkout: self
-        path: 'go/src/github.com/hyperledger/fabric'
-        displayName: Checkout Fabric Code
-      - script: ./ci/scripts/setup_hsm.sh
-        displayName: Install SoftHSM
-      - script: make unit-test
-        displayName: Run Unit Tests
+  - checkout: self 
+    path: go/src/github.com/hyperledger/fabric
 
-  - job: IntegrationTests
-    condition: eq(dependencies.VerifyBuild.outputs['SetJobTriggers.runTests'], 'true')
-    dependsOn: VerifyBuild
-    pool:
-      vmImage: ubuntu-18.04
-    strategy:
-      parallel: 5
-    timeoutInMinutes: 90
-    steps:
-      - template: install_deps.yml
-      - checkout: self
-        path: 'go/src/github.com/hyperledger/fabric'
-        displayName: Checkout Fabric Code
-      - script: make integration-test
-        displayName: Run Integration Tests
+  - script: |
+            mkdir -p $(Pipeline.Workspace)/dev
+            cd $(Pipeline.Workspace)/dev
+            git clone https://github.com/nekia/fabric-block-archiving-testenv.git
 
+  - script: |
+            make peer-docker
+            make blkarchiver-repo-docker
+            make configtxgen
+            make cryptogen
+    workingDirectory: '$(Pipeline.Workspace)/go/src/github.com/hyperledger/fabric'
+
+  - script: |
+            sudo pip install virtualenv
+            virtualenv e2etest
+            . e2etest/bin/activate
+            cd feature
+            pip install -r requirements.txt
+            export PATH=$(Pipeline.Workspace)/go/src/github.com/hyperledger/fabric/.build/bin:$PATH
+            behave -t @dev blockArchiving.feature
+    workingDirectory: '$(Pipeline.Workspace)/dev/fabric-block-archiving-testenv'

@@ -153,8 +153,6 @@ baseos: $(BUILD_DIR)/images/baseos/$(DUMMY)
 
 ccenv: $(BUILD_DIR)/images/ccenv/$(DUMMY)
 
-blkarchiver-repo: $(BUILD_DIR)/images/blkarchiver-repo/$(DUMMY)
-
 .PHONY: check-go-version
 check-go-version:
 	@scripts/check_go_version.sh

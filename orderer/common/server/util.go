@@ -29,7 +29,7 @@ func createLedgerFactory(conf *config.TopLevel) (blockledger.Factory, string) {
 			ld = createTempDir(conf.FileLedger.Prefix)
 		}
 		logger.Debug("Ledger dir:", ld)
-		lf = fileledger.New(ld)
+		lf = fileledger.New(ld, "", "")
 		// The file-based ledger stores the blocks for each channel
 		// in a fsblkstorage.ChainsDir sub-directory that we have
 		// to create separately. Otherwise the call to the ledger

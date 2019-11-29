@@ -1,5 +1,7 @@
 # Hyperledger Fabric Block Archiving
 
+[![Build Status](https://dev.azure.com/Hyperledger/Fabric-Block-Archiving/_apis/build/status/hyperledger-labs.fabric-block-archiving?branchName=master)](https://dev.azure.com/Hyperledger/Fabric-Block-Archiving/_build/latest?definitionId=55&branchName=master)
+
 This enhancement for Hyperledger Fabric is aiming to:
 * Reduce the total amount of storage space required for an organisation to operate a Hyperledger Fabric network by archiving block data into repository.
 * For organisations, operate a Hyperledger Fabric network with low resourced nodes such as a IoT edge devices.
@@ -36,6 +38,7 @@ You can use prebuild images for containers other than fabric-peer and fabric-blk
 ```
 vagrant@ubuntu:~/go/src/github.com/hyperledger/fabric$ make peer-docker
 vagrant@ubuntu:~/go/src/github.com/hyperledger/fabric$ make blkarchiver-repo-docker
+vagrant@ubuntu:~/go/src/github.com/hyperledger/fabric$ make native
 ```
 
 Now you should be able to see the following container images on your local machine.
@@ -52,7 +55,9 @@ hyperledger/fabric-peer               amd64-2.0.0-alpha-snapshot-ea48f79   5b05d
 hyperledger/fabric-peer               amd64-blkarchiver                    5b05d8d79382        2 hours ago         48.1MB
 hyperledger/fabric-peer               latest                               5b05d8d79382        2 hours ago         48.1MB
 ```
+
 ----
+
 ## Looking at how to work
 
 ### Clone Test suites for Block Archiving feature
@@ -66,20 +71,13 @@ vagrant@ubuntu:~/dev$ git clone https://github.com/nekia/fabric-block-archiving-
 vagrant@ubuntu:~/dev$ cd fabric-block-archiving-testenv
 ```
 
-### Download Hyperledger Fabric platform-specific binaries
+### Add a path of compiled Hyperledger Fabric binaries to PATH 
 
-In the following demo, a simple Hyperledger Fabric network is actually deployed on your local environment. It's based on fabric-samples/first-network example. You need to download some binaries required for that.
+In the following demo, a simple Hyperledger Fabric network is actually deployed on your local environment. It's based on fabric-samples/first-network example. You need to setup to enable some Hyperledger Fabric binaries (cryptogen, configtxgen) on your local.
 
 ```
-vagrant@ubuntu:~/dev/fabric-block-archiving-testenv$ curl -sSL http://bit.ly/2ysbOFE | bash -s -- 2.0.0-alpha 2.0.0-alpha 0.4.15 -s -d
+vagrant@ubuntu:~/dev/fabric-block-archiving-testenv$ export PATH=~/go/src/github.com/hyperledger/fabric/.build/bin:$PATH
 ```
-* You need to bypass docker image download(-d) and fabric-samples repo clone(-s)
-* If you would download docker image by mistake, it would override image tag of fabric-peer container image which is built for Block Archiving feature with the original one. In that case, you need to assign tag manually as below:
-
-  ```
-  vagrant@ubuntu:~/dev/fabric-block-archiving-testenv$ docker tag hyperledger/fabric-peer:amd64-blkarchiver hyperledger/fabric-peer:2.0.0-alpha
-  vagrant@ubuntu:~/dev/fabric-block-archiving-testenv$ docker tag hyperledger/fabric-peer:amd64-blkarchiver hyperledger/fabric-peer:latest
-  ```
 
 ### Clean up 
 

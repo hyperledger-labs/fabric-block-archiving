@@ -39,5 +39,5 @@ jobs:
             cd feature
             pip install -r requirements.txt
             export PATH=$(Pipeline.Workspace)/go/src/github.com/hyperledger/fabric/.build/bin:$PATH
-            behave -t @dev blockArchiving.feature
+            behave blockArchiving.feature
     workingDirectory: '$(Pipeline.Workspace)/dev/fabric-block-archiving-testenv'

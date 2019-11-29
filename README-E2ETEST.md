@@ -9,9 +9,13 @@ We are using [behave](https://behave.readthedocs.io/en/latest/) python package w
 To run end-to-end test scenarios, you need to meet the following prerequisites. 
 
 * Python 2.7+
+  * Also need python-dev package, too
 * pip
 * virtualenv (optional)
   * To isolate the test environment from other dev environment on your local
+* Docker
+* Docker-compose
+  * You can't use docker-compose which has been installed on the distribution by default. 
 
 ### Clone Test suites for Block Archiving feature
 
@@ -26,18 +30,11 @@ vagrant@ubuntu:~/dev$ cd fabric-block-archiving-testenv
 
 ### Download Hyperledger Fabric platform-specific binaries
 
-In the end-2-end test, a simple Hyperledger Fabric network is actually deployed on your local environment. It's based on fabric-samples/first-network example. You need to download some binaries required for that.
+In the following demo, a simple Hyperledger Fabric network is actually deployed on your local environment. You need to setup to enable some Hyperledger Fabric binaries (cryptogen, configtxgen) on your local.
 
 ```
-vagrant@ubuntu:~/dev/fabric-block-archiving-testenv$ curl -sSL http://bit.ly/2ysbOFE | bash -s -- 2.0.0-alpha 2.0.0-alpha 0.4.15 -s -d
+vagrant@ubuntu:~/dev/fabric-block-archiving-testenv$ export PATH=~/go/src/github.com/hyperledger/fabric/.build/bin:$PATH
 ```
-* You need to bypass docker image download(-d) and fabric-samples repo clone(-s)
-* If you would download docker image by mistake, it would override image tag of fabric-peer container image which is built for Block Archiving feature with the original one. In that case, you need to assign tag manually as below:
-
-  ```
-  vagrant@ubuntu:~/dev/fabric-block-archiving-testenv$ docker tag hyperledger/fabric-peer:amd64-blkarchiver hyperledger/fabric-peer:2.0.0-alpha
-  vagrant@ubuntu:~/dev/fabric-block-archiving-testenv$ docker tag hyperledger/fabric-peer:amd64-blkarchiver hyperledger/fabric-peer:latest
-  ```
 
 ### Setup environment for end-to-end test
 

@@ -16,7 +16,11 @@ limitations under the License.
 
 package fsblkstorage
 
-import "path/filepath"
+import (
+	"path/filepath"
+
+	"github.com/hyperledger/fabric/core/ledger"
+)
 
 const (
 	// ChainsDir is the name of the directory containing the channel ledgers.
@@ -30,21 +34,16 @@ const (
 type Conf struct {
 	blockStorageDir  string
 	maxBlockfileSize int
-	archiveConf      *ArchiveConf
-}
-
-type ArchiveConf struct {
-	archiveURL string
-	archiveDir string
+	archiveConfig    *ledger.ArchiveConfig
 }
 
 // NewConf constructs new `Conf`.
 // blockStorageDir is the top level folder under which `FsBlockStore` manages its data
-func NewConf(blockStorageDir string, maxBlockfileSize int, blockArchiveURL string, blockArchiveDir string) *Conf {
+func NewConf(blockStorageDir string, maxBlockfileSize int, archiveConfig *ledger.ArchiveConfig) *Conf {
 	if maxBlockfileSize <= 0 {
 		maxBlockfileSize = defaultMaxBlockfileSize
 	}
-	return &Conf{blockStorageDir, maxBlockfileSize, &ArchiveConf{blockArchiveURL, blockArchiveDir}}
+	return &Conf{blockStorageDir, maxBlockfileSize, archiveConfig}
 }
 
 func (conf *Conf) getIndexDir() string {

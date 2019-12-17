@@ -22,6 +22,7 @@ import (
 	"github.com/hyperledger/fabric/common/ledger/blockarchive"
 	"github.com/hyperledger/fabric/common/ledger/util"
 	"github.com/hyperledger/fabric/common/ledger/util/leveldbhelper"
+	"github.com/hyperledger/fabric/core/ledger"
 	"github.com/hyperledger/fabric/protoutil"
 	"github.com/pkg/errors"
 )
@@ -111,13 +112,13 @@ func newBlockfileMgr(id string, conf *Conf, indexConfig *blkstorage.IndexConfig,
 	}
 	if cpInfo == nil {
 		logger.Info(`Getting block information from block storage`)
-		if cpInfo, err = constructCheckpointInfoFromBlockFiles(rootDir, conf.archiveConf); err != nil {
+		if cpInfo, err = constructCheckpointInfoFromBlockFiles(rootDir, conf.archiveConfig); err != nil {
 			panic(fmt.Sprintf("Could not build checkpoint info from block files: %s", err))
 		}
 		logger.Debugf("Info constructed by scanning the blocks dir = %s", spew.Sdump(cpInfo))
 	} else {
 		logger.Debug(`Synching block information from block storage (if needed)`)
-		syncCPInfoFromFS(rootDir, cpInfo, conf.archiveConf)
+		syncCPInfoFromFS(rootDir, cpInfo, conf.archiveConfig)
 	}
 	err = mgr.saveCurrentInfo(cpInfo, true)
 	if err != nil {
@@ -176,7 +177,7 @@ func newBlockfileMgr(id string, conf *Conf, indexConfig *blkstorage.IndexConfig,
 // the file of where the last block was written.  Also retrieves contains the
 // last block number that was written.  At init
 //checkpointInfo:latestFileChunkSuffixNum=[0], latestFileChunksize=[0], lastBlockNumber=[0]
-func syncCPInfoFromFS(rootDir string, cpInfo *checkpointInfo, archiveConf *ArchiveConf) {
+func syncCPInfoFromFS(rootDir string, cpInfo *checkpointInfo, archiveConfig *ledger.ArchiveConfig) {
 	logger.Debugf("Starting checkpoint=%s", cpInfo)
 	//Checks if the file suffix of where the last block was written exists
 	filePath := deriveBlockfilePath(rootDir, cpInfo.latestFileChunkSuffixNum)
@@ -194,7 +195,7 @@ func syncCPInfoFromFS(rootDir string, cpInfo *checkpointInfo, archiveConf *Archi
 	}
 	//Scan the file system to verify that the checkpoint info stored in db is correct
 	_, endOffsetLastBlock, numBlocks, err := scanForLastCompleteBlock(
-		rootDir, cpInfo.latestFileChunkSuffixNum, int64(cpInfo.latestFileChunksize), archiveConf)
+		rootDir, cpInfo.latestFileChunkSuffixNum, int64(cpInfo.latestFileChunksize), archiveConfig)
 	if err != nil {
 		panic(fmt.Sprintf("Could not open current file for detecting last block in the file: %s", err))
 	}
@@ -373,7 +374,7 @@ func (mgr *blockfileMgr) syncIndex() error {
 
 	//open a blockstream to the file location that was stored in the index
 	var stream *blockStream
-	if stream, err = newBlockStream(mgr.rootDir, startFileNum, int64(startOffset), endFileNum, mgr.conf.archiveConf); err != nil {
+	if stream, err = newBlockStream(mgr.rootDir, startFileNum, int64(startOffset), endFileNum, mgr.conf.archiveConfig); err != nil {
 		return err
 	}
 	var blockBytes []byte
@@ -557,7 +558,7 @@ func (mgr *blockfileMgr) fetchTransactionEnvelope(lp *fileLocPointer) (*common.E
 }
 
 func (mgr *blockfileMgr) fetchBlockBytes(lp *fileLocPointer) ([]byte, error) {
-	stream, err := newBlockfileStream(mgr.rootDir, lp.fileSuffixNum, int64(lp.offset), mgr.conf.archiveConf)
+	stream, err := newBlockfileStream(mgr.rootDir, lp.fileSuffixNum, int64(lp.offset), mgr.conf.archiveConfig)
 	if err != nil {
 		return nil, err
 	}
@@ -611,11 +612,11 @@ func (mgr *blockfileMgr) saveCurrentInfo(i *checkpointInfo, sync bool) error {
 
 // scanForLastCompleteBlock scan a given block file and detects the last offset in the file
 // after which there may lie a block partially written (towards the end of the file in a crash scenario).
-func scanForLastCompleteBlock(rootDir string, fileNum int, startingOffset int64, archiveConf *ArchiveConf) ([]byte, int64, int, error) {
+func scanForLastCompleteBlock(rootDir string, fileNum int, startingOffset int64, archiveConfig *ledger.ArchiveConfig) ([]byte, int64, int, error) {
 	//scan the passed file number suffix starting from the passed offset to find the last completed block
 	numBlocks := 0
 	var lastBlockBytes []byte
-	blockStream, errOpen := newBlockfileStream(rootDir, fileNum, startingOffset, archiveConf)
+	blockStream, errOpen := newBlockfileStream(rootDir, fileNum, startingOffset, archiveConfig)
 	if errOpen != nil {
 		return nil, 0, 0, errOpen
 	}

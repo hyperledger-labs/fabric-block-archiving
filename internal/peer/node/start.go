@@ -681,7 +681,7 @@ func serve(args []string) error {
 	go ccSrv.Start()
 
 	// initialize archiving parameters
-	archiver.InitBlockArchiver()
+	archiver.InitBlockArchiver(peerInstance.GossipService)
 
 	logger.Debugf("Running peer")
 

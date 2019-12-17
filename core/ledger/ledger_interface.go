@@ -44,6 +44,7 @@ type Config struct {
 	PrivateDataConfig *PrivateDataConfig
 	// HistoryDBConfig holds the configuration parameters for the transaction history database.
 	HistoryDBConfig *HistoryDBConfig
+	ArchiveConfig   *ArchiveConfig
 }
 
 // StateDBConfig is a structure used to configure the state parameters for the ledger.
@@ -72,6 +73,13 @@ type PrivateDataConfig struct {
 // HistoryDBConfig is a structure used to configure the transaction history database.
 type HistoryDBConfig struct {
 	Enabled bool
+}
+
+type ArchiveConfig struct {
+	BlockArchiverURL string
+	BlockArchiverDir string
+	ArchiverEach     int
+	ArchiverKeep     int
 }
 
 // PeerLedgerProvider provides handle to ledger instances

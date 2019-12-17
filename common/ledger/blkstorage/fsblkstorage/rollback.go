@@ -12,6 +12,7 @@ import (
 	"github.com/hyperledger/fabric/common/ledger/blkstorage"
 	"github.com/hyperledger/fabric/common/ledger/util"
 	"github.com/hyperledger/fabric/common/ledger/util/leveldbhelper"
+	"github.com/hyperledger/fabric/core/ledger"
 	"github.com/hyperledger/fabric/protoutil"
 	"github.com/pkg/errors"
 )
@@ -23,17 +24,18 @@ type rollbackMgr struct {
 	dbProvider     *leveldbhelper.Provider
 	indexStore     *blockIndex
 	targetBlockNum uint64
+	archiveConfig  *ledger.ArchiveConfig
 }
 
 // Rollback reverts changes made to the block store beyond a given block number.
-func Rollback(blockStorageDir, ledgerID string, targetBlockNum uint64, indexConfig *blkstorage.IndexConfig) error {
-	r, err := newRollbackMgr(blockStorageDir, ledgerID, indexConfig, targetBlockNum)
+func Rollback(blockStorageDir, ledgerID string, targetBlockNum uint64, indexConfig *blkstorage.IndexConfig, archiveConfig *ledger.ArchiveConfig) error {
+	r, err := newRollbackMgr(blockStorageDir, ledgerID, indexConfig, targetBlockNum, archiveConfig)
 	if err != nil {
 		return err
 	}
 	defer r.dbProvider.Close()
 
-	if err := recordHeightIfGreaterThanPreviousRecording(r.ledgerDir); err != nil {
+	if err := recordHeightIfGreaterThanPreviousRecording(r.ledgerDir, archiveConfig); err != nil {
 		return err
 	}
 
@@ -50,11 +52,11 @@ func Rollback(blockStorageDir, ledgerID string, targetBlockNum uint64, indexConf
 	return nil
 }
 
-func newRollbackMgr(blockStorageDir, ledgerID string, indexConfig *blkstorage.IndexConfig, targetBlockNum uint64) (*rollbackMgr, error) {
+func newRollbackMgr(blockStorageDir, ledgerID string, indexConfig *blkstorage.IndexConfig, targetBlockNum uint64, archiveConfig *ledger.ArchiveConfig) (*rollbackMgr, error) {
 	r := &rollbackMgr{}
 
 	r.ledgerID = ledgerID
-	conf := &Conf{blockStorageDir: blockStorageDir}
+	conf := &Conf{blockStorageDir: blockStorageDir, archiveConfig: archiveConfig}
 	r.ledgerDir = conf.getLedgerBlockDir(ledgerID)
 	r.targetBlockNum = targetBlockNum
 
@@ -120,7 +122,7 @@ func (r *rollbackMgr) deleteIndexEntriesRange(startBlkNum, endBlkNum uint64) err
 		return err
 	}
 
-	stream, err := newBlockStream(r.ledgerDir, lp.fileSuffixNum, int64(lp.offset), -1)
+	stream, err := newBlockStream(r.ledgerDir, lp.fileSuffixNum, int64(lp.offset), -1, r.archiveConfig)
 	if err != nil {
 		return err
 	}
@@ -173,7 +175,7 @@ func (r *rollbackMgr) rollbackBlockFiles() error {
 		return err
 	}
 	// must not use index for block location search since the index can be behind the target block
-	targetFileNum, err := binarySearchFileNumForBlock(r.ledgerDir, r.targetBlockNum)
+	targetFileNum, err := binarySearchFileNumForBlock(r.ledgerDir, r.targetBlockNum, r.archiveConfig)
 	if err != nil {
 		return err
 	}
@@ -193,7 +195,7 @@ func (r *rollbackMgr) rollbackBlockFiles() error {
 	}
 
 	logger.Infof("Truncating block file [%d] to the end boundary of block number [%d]", targetFileNum, r.targetBlockNum)
-	endOffset, err := calculateEndOffSet(r.ledgerDir, targetFileNum, r.targetBlockNum)
+	endOffset, err := calculateEndOffSet(r.ledgerDir, targetFileNum, r.targetBlockNum, r.archiveConfig)
 	if err != nil {
 		return err
 	}
@@ -206,8 +208,8 @@ func (r *rollbackMgr) rollbackBlockFiles() error {
 	return nil
 }
 
-func calculateEndOffSet(ledgerDir string, targetBlkFileNum int, blockNum uint64) (int64, error) {
-	stream, err := newBlockfileStream(ledgerDir, targetBlkFileNum, 0)
+func calculateEndOffSet(ledgerDir string, targetBlkFileNum int, blockNum uint64, archiveConfig *ledger.ArchiveConfig) (int64, error) {
+	stream, err := newBlockfileStream(ledgerDir, targetBlkFileNum, 0, archiveConfig)
 	if err != nil {
 		return 0, err
 	}
@@ -230,7 +232,7 @@ func calculateEndOffSet(ledgerDir string, targetBlkFileNum int, blockNum uint64)
 
 // ValidateRollbackParams performs necessary validation on the input given for
 // the rollback operation.
-func ValidateRollbackParams(blockStorageDir, ledgerID string, targetBlockNum uint64) error {
+func ValidateRollbackParams(blockStorageDir, ledgerID string, targetBlockNum uint64, archiveConfig *ledger.ArchiveConfig) error {
 	logger.Infof("Validating the rollback parameters: ledgerID [%s], block number [%d]",
 		ledgerID, targetBlockNum)
 	conf := &Conf{blockStorageDir: blockStorageDir}
@@ -238,7 +240,7 @@ func ValidateRollbackParams(blockStorageDir, ledgerID string, targetBlockNum uin
 	if err := validateLedgerID(ledgerDir, ledgerID); err != nil {
 		return err
 	}
-	if err := validateTargetBlkNum(ledgerDir, targetBlockNum); err != nil {
+	if err := validateTargetBlkNum(ledgerDir, targetBlockNum, archiveConfig); err != nil {
 		return err
 	}
 	return nil
@@ -257,9 +259,9 @@ func validateLedgerID(ledgerDir, ledgerID string) error {
 	return nil
 }
 
-func validateTargetBlkNum(ledgerDir string, targetBlockNum uint64) error {
+func validateTargetBlkNum(ledgerDir string, targetBlockNum uint64, archiveConfig *ledger.ArchiveConfig) error {
 	logger.Debugf("Validating the given block number [%d] against the ledger block height", targetBlockNum)
-	cpInfo, err := constructCheckpointInfoFromBlockFiles(ledgerDir)
+	cpInfo, err := constructCheckpointInfoFromBlockFiles(ledgerDir, archiveConfig)
 	if err != nil {
 		return err
 	}

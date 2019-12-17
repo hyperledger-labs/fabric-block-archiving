@@ -7,6 +7,7 @@ package archiver
 
 import (
 	"github.com/hyperledger/fabric/core/ledger/ledgerconfig"
+	"github.com/hyperledger/fabric/gossip/service"
 	"github.com/spf13/viper"
 
 	"github.com/hyperledger/fabric/common/flogging"
@@ -16,15 +17,15 @@ import (
 var loggerArchive = flogging.MustGetLogger("archiver.common")
 
 // InitBlockArchiver initializes the BlockArchiver functions
-func InitBlockArchiver() {
+func InitBlockArchiver(gossipService *service.GossipService) {
 	loggerArchive.Info("Archiver.InitBlockArchiver...")
 
-	initBlockArchiverParams()
+	initBlockArchiverParams(gossipService)
 
 	loggerArchive.Info("Archiver.InitBlockArchiver isArchiver=", blockarchive.IsArchiver, " isClient-", blockarchive.IsClient)
 }
 
-func initBlockArchiverParams() {
+func initBlockArchiverParams(gossipService *service.GossipService) {
 	blockarchive.IsArchiver = viper.GetBool("peer.archiver.enabled")
 	if blockarchive.IsArchiver {
 		blockarchive.NumBlockfileEachArchiving, blockarchive.NumKeepLatestBlocks = ledgerconfig.GetArchivingParameters()
@@ -35,5 +36,6 @@ func initBlockArchiverParams() {
 	blockarchive.BlockArchiverDir = ledgerconfig.GetBlockArchiverDir()
 	blockarchive.BlockArchiverURL = ledgerconfig.GetBlockArchiverURL()
 	blockarchive.BlockStorePath = ledgerconfig.GetBlockStorePath()
+	blockarchive.GossipService = gossipService
 
 }

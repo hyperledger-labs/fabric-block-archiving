@@ -13,7 +13,7 @@ import (
 	"github.com/hyperledger/fabric/gossip/protoext"
 	"github.com/hyperledger/fabric/gossip/util"
 
-	proto "github.com/hyperledger/fabric/protos/gossip"
+	proto "github.com/hyperledger/fabric-protos-go/gossip"
 )
 
 type gossip interface {
@@ -53,14 +53,14 @@ type Service interface {
 }
 
 // NewService returns a new Service and starts message handler go routine
-func NewService(gossip gossip, chainID common.ChainID, ledger ledgerResources) Service {
+func NewService(gossip gossip, channelID common.ChannelID, ledger ledgerResources) Service {
 
 	ar := &archiveSvcImpl{
 		stopChan: make(chan struct{}, 1),
 		logger:   util.GetLogger(util.ArchiveLogger, ""),
 		ledger:   ledger,
 		gossip:   gossip,
-		channel:  chainID,
+		channel:  channelID,
 	}
 
 	// Start the service
@@ -76,7 +76,7 @@ type archiveSvcImpl struct {
 	logger   util.Logger
 	ledger   ledgerResources
 	gossip   gossip
-	channel  common.ChainID
+	channel  common.ChannelID
 }
 
 func (ar *archiveSvcImpl) start() {

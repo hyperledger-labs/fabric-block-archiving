@@ -9,10 +9,9 @@ import (
 	"os"
 	"path/filepath"
 
+	gossip_proto "github.com/hyperledger/fabric-protos-go/gossip"
 	"github.com/hyperledger/fabric/common/flogging"
 	"github.com/hyperledger/fabric/common/ledger/blockarchive"
-	"github.com/hyperledger/fabric/gossip/service"
-	gossip_proto "github.com/hyperledger/fabric/protos/gossip"
 )
 
 var loggerArchive = flogging.MustGetLogger("archiver.archive")
@@ -146,7 +145,7 @@ func (arch *blockfileArchiver) sendArchivedMessage(fileNum int) {
 
 	// Tell the other nodes about the archived blockfile
 	gossipMsg := arch.createGossipMsg(fileNum)
-	service.GetGossipService().Gossip(gossipMsg)
+	blockarchive.GossipService.Gossip(gossipMsg)
 }
 
 // Based on createGossipMsg @ blocksprovider.go

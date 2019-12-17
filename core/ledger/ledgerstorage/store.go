@@ -46,13 +46,14 @@ var attrsToIndex = []blkstorage.IndexableAttr{
 }
 
 // NewProvider returns the handle to the provider
-func NewProvider(blockStoreDir string, conf *pvtdatastorage.PrivateDataConfig, metricsProvider metrics.Provider) (*Provider, error) {
+func NewProvider(blockStoreDir string, conf *pvtdatastorage.PrivateDataConfig, metricsProvider metrics.Provider, archiveConfig *ledger.ArchiveConfig) (*Provider, error) {
 	// Initialize the block storage
 	indexConfig := &blkstorage.IndexConfig{AttrsToIndex: attrsToIndex}
 	blockStoreProvider, err := fsblkstorage.NewProvider(
 		fsblkstorage.NewConf(
 			blockStoreDir,
 			maxBlockFileSize,
+			archiveConfig,
 		),
 		indexConfig,
 		metricsProvider,
@@ -341,18 +342,18 @@ func LoadPreResetHeight(blockstorePath string, ledgerIDs []string) (map[string]u
 }
 
 // ResetBlockStore resets all ledgers to the genesis block.
-func ResetBlockStore(blockstorePath string) error {
-	return fsblkstorage.ResetBlockStore(blockstorePath)
+func ResetBlockStore(blockstorePath string, archiveConfig *ledger.ArchiveConfig) error {
+	return fsblkstorage.ResetBlockStore(blockstorePath, archiveConfig)
 }
 
 // ValidateRollbackParams performs necessary validation on the input given for
 // the rollback operation.
-func ValidateRollbackParams(blockstorePath, ledgerID string, blockNum uint64) error {
-	return fsblkstorage.ValidateRollbackParams(blockstorePath, ledgerID, blockNum)
+func ValidateRollbackParams(blockstorePath, ledgerID string, blockNum uint64, archiveConfig *ledger.ArchiveConfig) error {
+	return fsblkstorage.ValidateRollbackParams(blockstorePath, ledgerID, blockNum, archiveConfig)
 }
 
 // Rollback reverts changes made to the block store beyond a given block number.
-func Rollback(blockstorePath, ledgerID string, blockNum uint64) error {
+func Rollback(blockstorePath, ledgerID string, blockNum uint64, archiveConfig *ledger.ArchiveConfig) error {
 	indexConfig := &blkstorage.IndexConfig{AttrsToIndex: attrsToIndex}
-	return fsblkstorage.Rollback(blockstorePath, ledgerID, blockNum, indexConfig)
+	return fsblkstorage.Rollback(blockstorePath, ledgerID, blockNum, indexConfig, archiveConfig)
 }

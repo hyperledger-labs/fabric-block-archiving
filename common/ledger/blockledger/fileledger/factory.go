@@ -23,6 +23,7 @@ import (
 	"github.com/hyperledger/fabric/common/ledger/blkstorage/fsblkstorage"
 	"github.com/hyperledger/fabric/common/ledger/blockledger"
 	"github.com/hyperledger/fabric/common/metrics"
+	"github.com/hyperledger/fabric/core/ledger"
 )
 
 type fileLedgerFactory struct {
@@ -69,7 +70,7 @@ func (flf *fileLedgerFactory) Close() {
 // New creates a new ledger factory
 func New(directory string, metricsProvider metrics.Provider, archiveURL string, archiveDir string) (blockledger.Factory, error) {
 	p, err := fsblkstorage.NewProvider(
-		fsblkstorage.NewConf(directory, -1, archiveURL, archiveDir),
+		fsblkstorage.NewConf(directory, -1, &ledger.ArchiveConfig{}),
 		&blkstorage.IndexConfig{
 			AttrsToIndex: []blkstorage.IndexableAttr{blkstorage.IndexableAttrBlockNum}},
 		metricsProvider,

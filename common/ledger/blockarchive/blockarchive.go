@@ -6,6 +6,8 @@ COPYRIGHT Fujitsu Software Technologies Limited 2018 All Rights Reserved.
 // client peer node to running a network with archiving feature.
 package blockarchive
 
+import "github.com/hyperledger/fabric/gossip/service"
+
 // IsArchiver indicates whether archiver mode is enabled or not.
 // Archiver mode and client mode are mutually exclusive.
 var IsArchiver bool
@@ -31,6 +33,8 @@ var NumBlockfileEachArchiving int
 // NumKeepLatestBlocks is the least number of data chunks
 // which a peer node should keep on local file system
 var NumKeepLatestBlocks int
+
+var GossipService *service.GossipService
 
 // ArchiverMessage is the message that contains which blockfile is archived
 type ArchiverMessage struct {

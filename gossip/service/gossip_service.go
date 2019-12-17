@@ -465,8 +465,8 @@ func (g *GossipService) newLeaderElectionComponent(channelID string, callback fu
 	return election.NewLeaderElectionService(adapter, string(PKIid), callback, config)
 }
 
-func (g *gossipServiceImpl) newArchiveComponent(channelID string, ledger privdata2.Coordinator) archive.ArchiveService {
-	return archive.NewService(g, gossipCommon.ChannelID(channelID), ledger)
+func (g *GossipService) newArchiveComponent(channelID string, ledger gossipprivdata.Coordinator) archive.Service {
+	return archive.NewService(g, gossipcommon.ChannelID(channelID), ledger)
 }
 
 func (g *GossipService) amIinChannel(myOrg string, config Config) bool {

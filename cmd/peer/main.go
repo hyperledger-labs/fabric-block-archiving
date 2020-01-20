@@ -17,6 +17,7 @@ import (
 	"github.com/hyperledger/fabric/internal/peer/common"
 	"github.com/hyperledger/fabric/internal/peer/lifecycle"
 	"github.com/hyperledger/fabric/internal/peer/node"
+	"github.com/hyperledger/fabric/internal/peer/verify"
 	"github.com/hyperledger/fabric/internal/peer/version"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
@@ -45,6 +46,7 @@ func main() {
 
 	mainCmd.AddCommand(version.Cmd())
 	mainCmd.AddCommand(node.Cmd())
+	mainCmd.AddCommand(verify.Cmd())
 	mainCmd.AddCommand(chaincode.Cmd(nil, cryptoProvider))
 	mainCmd.AddCommand(channel.Cmd(nil))
 	mainCmd.AddCommand(lifecycle.Cmd(cryptoProvider))

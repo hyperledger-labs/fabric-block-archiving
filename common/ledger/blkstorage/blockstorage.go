@@ -72,4 +72,5 @@ type BlockStore interface {
 	RetrieveTxValidationCodeByTxID(txID string) (peer.TxValidationCode, error)
 	Shutdown()
 	SetBlockArchived(blockFileNo int, deleteTheFile bool) error
+	DumpBlockfileInfo(blockNum uint64) string
 }

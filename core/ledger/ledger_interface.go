@@ -153,6 +153,8 @@ type PeerLedger interface {
 	// - (Not implemented) Leave a persist record which indicate that N th data chunk has been archived
 	// This interface is used from gossip when receiving a message notifying that an archive has been done.
 	SetArchived(dataChunkNo int, deleteTheChunk bool) error
+
+	DumpBlockInfo(blockNum uint64) string
 }
 
 // ValidatedLedger represents the 'final ledger' after filtering out invalid transactions from PeerLedger.

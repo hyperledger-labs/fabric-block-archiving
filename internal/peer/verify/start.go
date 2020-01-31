@@ -39,6 +39,7 @@ import (
 	"github.com/hyperledger/fabric/common/metadata"
 	"github.com/hyperledger/fabric/common/metrics"
 	"github.com/hyperledger/fabric/common/policies"
+	"github.com/hyperledger/fabric/common/tools/protolator"
 	"github.com/hyperledger/fabric/core/aclmgmt"
 	"github.com/hyperledger/fabric/core/archiver"
 	"github.com/hyperledger/fabric/core/cclifecycle"
@@ -101,6 +102,7 @@ import (
 
 var (
 	verifyChannel string
+	dumpMetadata  bool
 	pInstance     *peer.Peer
 )
 
@@ -116,6 +118,7 @@ func startCmd() *cobra.Command {
 	// Set the flags on the node start command.
 	flags := nodeStartCmd.Flags()
 	flags.StringVarP(&verifyChannel, "channelID", "c", "", "In case of a newChain command, the channel ID to create. It must be all lower case, less than 250 characters long and match the regular expression: [a-z][a-z0-9.-]*")
+	flags.BoolVarP(&dumpMetadata, "dumpMeta", "d", false, "Dump metadata in each block")
 
 	return nodeStartCmd
 }
@@ -131,7 +134,11 @@ var nodeStartCmd = &cobra.Command{
 		// Parsing of the command line is done so silence cmd usage
 		cmd.SilenceUsage = true
 		serve(args)
-		Verify(verifyChannel)
+		if dumpMetadata {
+			DumpMeta(verifyChannel)
+		} else {
+			Verify(verifyChannel)
+		}
 		return nil
 	},
 }
@@ -1360,7 +1367,7 @@ func Verify(channelID string) {
 	if err != nil {
 		logger.Debugf("could not obtain blockchain information "+
 			"channel name %s, due to %s", channelID, err)
-		logger.Fatal("FAIL")
+		loggerResult.Error("FAIL")
 		os.Exit(-1)
 	}
 
@@ -1378,7 +1385,7 @@ func Verify(channelID string) {
 	block, err := verifyLedger.GetBlockByNumber(uint64(0))
 	if err != nil {
 		logger.Debugf("failed to read genesis block number, with error", err)
-		logger.Fatal("FAIL")
+		loggerResult.Error("FAIL")
 		os.Exit(-1)
 	}
 
@@ -1390,14 +1397,14 @@ func Verify(channelID string) {
 		block, err := verifyLedger.GetBlockByNumber(blockIndex)
 		if err != nil {
 			logger.Debugf("failed to read block number %d from ledger, with error", blockIndex, err)
-			logger.Fatal("FAIL")
+			loggerResult.Error("FAIL")
 			os.Exit(-1)
 		}
 
 		if !bytes.Equal(prevHash, block.Header.PreviousHash) {
 			logger.Debugf("block number [%d]: hash comparison has failed, previous block hash %x doesn't"+
 				" equal to hash claimed within block header %x", blockIndex, prevHash, block.Header.PreviousHash)
-			logger.Fatal("FAIL")
+			loggerResult.Fatal("FAIL")
 			os.Exit(-1)
 		} else {
 			logger.Debugf("block number [%d]: previous hash matched", blockIndex)
@@ -1412,7 +1419,7 @@ func Verify(channelID string) {
 
 		if err := mcs.VerifyBlock(gossipcommon.ChannelID(channelID), block.Header.Number, block); err != nil {
 			logger.Debugf("failed to verify block with sequence number %d. %s", blockIndex, err)
-			logger.Fatal("FAIL")
+			loggerResult.Error("FAIL")
 			os.Exit(-1)
 		} else {
 			logger.Debugf("Block [seq = %d], hash = [%x], previous hash = [%x], VERIFICATION PASSED",
@@ -1420,5 +1427,38 @@ func Verify(channelID string) {
 		}
 		prevHash = protoutil.BlockHeaderHash(block.Header)
 	}
-	logger.Fatal("PASS")
+	loggerResult.Info("PASS")
+}
+
+func DumpMeta(channelID string) {
+	logger.Debugf("Starting DumpMeta : %s")
+	dumpLedger := pInstance.GetLedger(channelID)
+	blockchainInfo, err := dumpLedger.GetBlockchainInfo()
+	if err != nil {
+		logger.Debugf("could not obtain blockchain information "+
+			"channel name %s, due to %s", channelID, err)
+		logger.Fatal("FAIL")
+		os.Exit(-1)
+	}
+
+	logger.Debugf("ledger height of channel %s, is %d\n", channelID, blockchainInfo.Height)
+
+	// complete full scan and check over ledger blocks
+	for blockIndex := uint64(0); blockIndex < blockchainInfo.Height; blockIndex++ {
+		block, err := dumpLedger.GetBlockByNumber(blockIndex)
+		if err != nil {
+			logger.Debugf("failed to read block number %d from ledger, with error", blockIndex, err)
+			loggerResult.Error("FAIL")
+			os.Exit(-1)
+		}
+		buff := &bytes.Buffer{}
+		err = protolator.DeepMarshalJSON(buff, block.Metadata)
+		if err != nil {
+			logger.Errorf("malformed block contents: %s", err)
+			return
+		}
+		logger.Infof("dump result:")
+		loggerResult.Info(buff.String())
+		loggerResult.Info(dumpLedger.DumpBlockInfo(blockIndex))
+	}
 }

@@ -8,6 +8,7 @@ package fsblkstorage
 
 import (
 	"errors"
+	"fmt"
 	"io"
 	"net"
 	"os"
@@ -96,4 +97,10 @@ func (mgr *blockfileMgr) SetArchiverChan(ch chan blockarchive.ArchiverMessage) {
 
 func (store *fsBlockStore) SetBlockArchived(blockFileNo int, deleteTheFile bool) error {
 	return store.archiver.SetBlockfileArchived(blockFileNo, deleteTheFile)
+}
+
+func (store *fsBlockStore) DumpBlockfileInfo(blockNum uint64) string {
+	flp, _ := store.fileMgr.index.getBlockLocByBlockNum(blockNum)
+	fmt.Println(flp.String())
+	return fmt.Sprintf(`{ "fileSuffixNum": %d, "offset": %d, "bytesLength": %d }`, flp.fileSuffixNum, flp.offset, flp.bytesLength)
 }

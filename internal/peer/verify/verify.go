@@ -19,6 +19,7 @@ const (
 )
 
 var logger = flogging.MustGetLogger("verifyCmd")
+var loggerResult = flogging.MustGetLogger("verifyResult")
 
 // Cmd returns the cobra command for Node
 func Cmd() *cobra.Command {

@@ -21,3 +21,7 @@ func (l *kvLedger) SetArchived(blockFileNo int, deleteTheFile bool) error {
 
 	return nil
 }
+
+func (l *kvLedger) DumpBlockInfo(blockNum uint64) string {
+	return l.blockStore.DumpBlockfileInfo(blockNum)
+}

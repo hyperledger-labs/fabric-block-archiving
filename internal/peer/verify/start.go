@@ -185,8 +185,12 @@ type custodianLauncherAdapter struct {
 	streamHandler extcc.StreamHandler
 }
 
-func (e custodianLauncherAdapter) Launch(ccid string) error {
-	return e.launcher.Launch(ccid, e.streamHandler)
+func (c custodianLauncherAdapter) Launch(ccid string) error {
+	return c.launcher.Launch(ccid, c.streamHandler)
+}
+
+func (c custodianLauncherAdapter) Stop(ccid string) error {
+	return c.launcher.Stop(ccid)
 }
 
 func serve(args []string) error {
@@ -231,9 +235,9 @@ func serve(args []string) error {
 	logObserver := floggingmetrics.NewObserver(metricsProvider)
 	flogging.SetObserver(logObserver)
 
-	membershipInfoProvider := privdata.NewMembershipInfoProvider(createSelfSignedData(), identityDeserializerFactory)
-
 	mspID := coreConfig.LocalMSPID
+
+	membershipInfoProvider := privdata.NewMembershipInfoProvider(mspID, createSelfSignedData(), identityDeserializerFactory)
 
 	chaincodeInstallPath := filepath.Join(coreconfig.GetPath("peer.fileSystemPath"), "lifecycle", "chaincodes")
 	ccStore := persistence.NewStore(chaincodeInstallPath)
@@ -381,6 +385,7 @@ func serve(args []string) error {
 	}
 
 	lifecycleValidatorCommitter := &lifecycle.ValidatorCommitter{
+		CoreConfig:                   coreConfig,
 		Resources:                    lifecycleResources,
 		LegacyDeployedCCInfoProvider: &lscc.DeployedCCInfoProvider{},
 	}
@@ -547,6 +552,7 @@ func serve(args []string) error {
 				"CORE_CHAINCODE_LOGGING_SHIM=" + chaincodeConfig.ShimLogLevel,
 				"CORE_CHAINCODE_LOGGING_FORMAT=" + chaincodeConfig.LogFormat,
 			},
+			MSPID: mspID,
 		}
 		if err := opsSystem.RegisterChecker("docker", dockerVM); err != nil {
 			logger.Panicf("failed to register docker health check: %s", err)
@@ -554,7 +560,7 @@ func serve(args []string) error {
 	}
 
 	externalVM := &externalbuilder.Detector{
-		Builders:    externalbuilder.CreateBuilders(coreConfig.ExternalBuilders),
+		Builders:    externalbuilder.CreateBuilders(coreConfig.ExternalBuilders, mspID),
 		DurablePath: externalBuilderOutput,
 	}
 

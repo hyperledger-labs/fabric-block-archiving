@@ -5,13 +5,12 @@ COPYRIGHT Fujitsu Software Technologies Limited 2018 All Rights Reserved.
 package fsblkstorage
 
 import (
-	"io/ioutil"
 	"os"
 	"path/filepath"
 
-	gossip_proto "github.com/hyperledger/fabric-protos-go/gossip"
 	"github.com/hyperledger/fabric/common/flogging"
 	"github.com/hyperledger/fabric/common/ledger/blockarchive"
+	"github.com/hyperledger/fabric/gossip/common"
 )
 
 var loggerArchive = flogging.MustGetLogger("archiver.archive")
@@ -27,6 +26,8 @@ type blockfileArchiver struct {
 	blockfileDir string
 	// Postfix number of the blockfile which should be archived next
 	nextBlockfileNum int
+	// Height of discarded block on the local ledger
+	currDiscardedBlockHeigh uint64
 }
 
 const (
@@ -42,9 +43,9 @@ func newBlockfileArchiver(id string, mgr *blockfileMgr) *blockfileArchiver {
 	loggerArchive.Info("newBlockfileArchiver: ", id)
 
 	blockfileDir := filepath.Join(blockarchive.BlockStorePath, ChainsDir, id)
-	arch := &blockfileArchiver{id, mgr, blockfileDir, 1}
+	arch := &blockfileArchiver{id, mgr, blockfileDir, 1, 0}
 
-	if blockarchive.IsArchiver {
+	if blockarchive.IsArchiver || blockarchive.IsClient {
 		loggerArchive.Info("newBlockfileArchiver - creating archiverChan...")
 		// Create a new channel to allow the blockfileMgr to send messages to the archiver
 		archiverChan := make(chan blockarchive.ArchiverMessage, 5)
@@ -84,32 +85,32 @@ func (arch *blockfileArchiver) listenForBlockfiles(archiverChan chan blockarchiv
 // If there are enough amount of blockfiles on local file system to be archived, the actual archiving routine will be triggered.
 func (arch *blockfileArchiver) archiveChannelIfNecessary() {
 
-	chainID := arch.chainID
-	loggerArchive.Infof("ArchiveChannelIfNecessary [%s]", chainID)
+	loggerArchive.Infof("ArchiveChannelIfNecessary [%s]", arch.chainID)
 
-	numBlockfileEachArchiving := blockarchive.NumBlockfileEachArchiving
-	numKeepLatestBlocks := blockarchive.NumKeepLatestBlocks
+	// numBlockfileEachArchiving := blockarchive.NumBlockfileEachArchiving
 
-	if isNeedArchiving(arch.blockfileDir, numBlockfileEachArchiving+numKeepLatestBlocks) {
-		for i := 0; i < numBlockfileEachArchiving; i++ {
-			for j := 0; j < maxRetryForCatchUp; j++ {
-				// alreadyArchived == true means the blockfile has already been archived.
-				// When returning alreadyArchived = true, then retrying to the next blockfile
-				// until occuring the actual archiving within the maximum retry count
-				if alreadyArchived, err := arch.archiveBlockfile(arch.nextBlockfileNum, true); err != nil && alreadyArchived != true {
-					loggerArchive.Info("Failed: Archiver")
-					break
-				} else {
-					loggerArchive.Info("Succeeded: Archiver")
-					arch.nextBlockfileNum++
-					if alreadyArchived == false {
-						break
-					}
-				}
-			}
-		}
+	if arch.isNeedArchiving() {
+		loggerArchive.Infof("Discarding blockfile [%s]", arch.chainID)
+
+		// for i := 0; i < numBlockfileEachArchiving; i++ {
+		// 	for j := 0; j < maxRetryForCatchUp; j++ {
+		// 		// alreadyArchived == true means the blockfile has already been archived.
+		// 		// When returning alreadyArchived = true, then retrying to the next blockfile
+		// 		// until occuring the actual archiving within the maximum retry count
+		// 		if alreadyArchived, err := arch.archiveBlockfile(arch.nextBlockfileNum); err != nil && alreadyArchived != true {
+		// 			loggerArchive.Info("Failed: Archiver")
+		// 			break
+		// 		} else {
+		// 			loggerArchive.Info("Succeeded: Archiver")
+		// 			arch.nextBlockfileNum++
+		// 			if alreadyArchived == false {
+		// 				break
+		// 			}
+		// 		}
+		// 	}
+		// }
 	} else {
-		loggerArchive.Infof("[%s] There is no candidate to be deleted", chainID)
+		loggerArchive.Infof("[%s] There is no candidate to be deleted", arch.chainID)
 	}
 }
 
@@ -127,9 +128,6 @@ func (arch *blockfileArchiver) archiveBlockfile(fileNum int, deleteTheFile bool)
 		return alreadyArchived, nil
 	}
 
-	// Initiate and send a gossip message to let the other peers know...
-	arch.sendArchivedMessage(fileNum)
-
 	// Record the fact that the blockfile has been archived, and delete it locally if required
 	if err := arch.SetBlockfileArchived(fileNum, deleteTheFile); err != nil {
 		loggerArchive.Error(err)
@@ -137,31 +135,6 @@ func (arch *blockfileArchiver) archiveBlockfile(fileNum int, deleteTheFile bool)
 	}
 
 	return false, nil
-}
-
-// sendArchivedMessage initiates and sends a gossip message to let the other peers know...
-func (arch *blockfileArchiver) sendArchivedMessage(fileNum int) {
-	loggerArchive.Info("sendArchivedMessage...")
-
-	// Tell the other nodes about the archived blockfile
-	gossipMsg := arch.createGossipMsg(fileNum)
-	blockarchive.GossipService.Gossip(gossipMsg)
-}
-
-// Based on createGossipMsg @ blocksprovider.go
-func (arch *blockfileArchiver) createGossipMsg(fileNum int) *gossip_proto.GossipMessage {
-	fnum := uint64(fileNum)
-	gossipMsg := &gossip_proto.GossipMessage{
-		Nonce:   0,
-		Tag:     gossip_proto.GossipMessage_CHAN_AND_ORG,
-		Channel: []byte(arch.chainID),
-		Content: &gossip_proto.GossipMessage_ArchivedBlockfile{
-			ArchivedBlockfile: &gossip_proto.ArchivedBlockfile{
-				BlockfileNo: fnum,
-			},
-		},
-	}
-	return gossipMsg
 }
 
 // SetBlockfileArchived deletes a blockfile and records it as having been archived
@@ -205,20 +178,12 @@ func (arch *blockfileArchiver) deleteArchivedBlockfile(fileNum int) error {
 }
 
 // isNeedArchiving - returns whether archiving should be triggered or not
-func isNeedArchiving(blockfileFolder string, keepFileNum int) bool {
-	loggerArchive.Debugf("blockfileFolder=%s, keepFileNum=%d", blockfileFolder, keepFileNum)
+func (arch *blockfileArchiver) isNeedArchiving() bool {
 
-	files, err := ioutil.ReadDir(blockfileFolder)
-	if err != nil {
-		loggerArchive.Error(err)
-		return false
-	}
-
-	if len(files) > keepFileNum {
-		loggerArchive.Debugf("%d blockfile(s) should be archived", len(files)-keepFileNum)
-		return true
-	}
-
-	loggerArchive.Debug("There is no blockfile to be archived yet")
+	remoteArchivedBlockHeight := blockarchive.GossipService.ReadArchivedBlockHeight(common.ChannelID(arch.chainID))
+	localCurrentBlockHeigh := arch.mgr.getBlockchainInfo().Height
+	localDiscardedBlockHeight := arch.currDiscardedBlockHeigh
+	// numKeepLatestBlocks := blockarchive.NumKeepLatestBlocks
+	loggerArchive.Infof("local : %d  vs  archived : %d  vs  discarded : %d", localCurrentBlockHeigh, remoteArchivedBlockHeight, localDiscardedBlockHeight)
 	return false
 }

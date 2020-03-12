@@ -71,6 +71,10 @@ type GossipChannel interface {
 	// publishes to other peers in the channel
 	UpdateLedgerHeight(height uint64)
 
+	// UpdateArchivedBlockHeight updates the ledger height the peer
+	// publishes to other peers in the channel
+	UpdateArchivedBlockHeight(height uint64)
+
 	// UpdateChaincodes updates the chaincodes the peer publishes
 	// to other peers in the channel
 	UpdateChaincodes(chaincode []*proto.Chaincode)
@@ -346,11 +350,13 @@ func (gc *gossipChannel) LeaveChannel() {
 
 	var chaincodes []*proto.Chaincode
 	var height uint64
+	var heightArchived uint64
 	if prevMsg := gc.stateInfoMsg; prevMsg != nil {
 		chaincodes = prevMsg.GetStateInfo().Properties.Chaincodes
 		height = prevMsg.GetStateInfo().Properties.LedgerHeight
+		heightArchived = prevMsg.GetStateInfo().Properties.ArchivedBlockHeight
 	}
-	gc.updateProperties(height, chaincodes, true)
+	gc.updateProperties(height, chaincodes, true, heightArchived)
 }
 
 func (gc *gossipChannel) hasLeftChannel() bool {
@@ -719,13 +725,6 @@ func (gc *gossipChannel) HandleMessage(msg protoext.ReceivedMessage) {
 		}
 	}
 
-	if protoext.IsArchivedBlockfileMsg(m.GossipMessage) {
-		// Handling ArchivedBlockfile message
-		added := gc.archivedBlockfileMsgStore.Add(m)
-		if added {
-			gc.DeMultiplex(m)
-		}
-	}
 }
 
 func (gc *gossipChannel) handleStateInfSnapshot(m *proto.GossipMessage, sender common.PKIidType) {
@@ -899,11 +898,30 @@ func (gc *gossipChannel) UpdateLedgerHeight(height uint64) {
 
 	var chaincodes []*proto.Chaincode
 	var leftChannel bool
+	var heightArchived uint64
 	if prevMsg := gc.stateInfoMsg; prevMsg != nil {
 		leftChannel = prevMsg.GetStateInfo().Properties.LeftChannel
 		chaincodes = prevMsg.GetStateInfo().Properties.Chaincodes
+		heightArchived = prevMsg.GetStateInfo().Properties.ArchivedBlockHeight
 	}
-	gc.updateProperties(height, chaincodes, leftChannel)
+	gc.updateProperties(height, chaincodes, leftChannel, heightArchived)
+}
+
+// UpdateArchivedBlockHeight updates the archived block height the peer
+// publishes to other peers in the channel
+func (gc *gossipChannel) UpdateArchivedBlockHeight(heightArchived uint64) {
+	gc.Lock()
+	defer gc.Unlock()
+
+	var chaincodes []*proto.Chaincode
+	var leftChannel bool
+	var height uint64
+	if prevMsg := gc.stateInfoMsg; prevMsg != nil {
+		leftChannel = prevMsg.GetStateInfo().Properties.LeftChannel
+		chaincodes = prevMsg.GetStateInfo().Properties.Chaincodes
+		height = prevMsg.GetStateInfo().Properties.ArchivedBlockHeight
+	}
+	gc.updateProperties(height, chaincodes, leftChannel, heightArchived)
 }
 
 // UpdateChaincodes updates the chaincodes the peer publishes
@@ -914,11 +932,13 @@ func (gc *gossipChannel) UpdateChaincodes(chaincodes []*proto.Chaincode) {
 
 	var ledgerHeight uint64 = 1
 	var leftChannel bool
+	var heightArchived uint64
 	if prevMsg := gc.stateInfoMsg; prevMsg != nil {
 		ledgerHeight = prevMsg.GetStateInfo().Properties.LedgerHeight
 		leftChannel = prevMsg.GetStateInfo().Properties.LeftChannel
+		heightArchived = prevMsg.GetStateInfo().Properties.ArchivedBlockHeight
 	}
-	gc.updateProperties(ledgerHeight, chaincodes, leftChannel)
+	gc.updateProperties(ledgerHeight, chaincodes, leftChannel, heightArchived)
 }
 
 // UpdateStateInfo updates this channel's StateInfo message
@@ -930,7 +950,7 @@ func (gc *gossipChannel) updateStateInfo(msg *protoext.SignedGossipMessage) {
 	atomic.StoreInt32(&gc.shouldGossipStateInfo, int32(1))
 }
 
-func (gc *gossipChannel) updateProperties(ledgerHeight uint64, chaincodes []*proto.Chaincode, leftChannel bool) {
+func (gc *gossipChannel) updateProperties(ledgerHeight uint64, chaincodes []*proto.Chaincode, leftChannel bool, heightArchived uint64) {
 	stateInfMsg := &proto.StateInfo{
 		Channel_MAC: GenerateMAC(gc.pkiID, gc.chainID),
 		PkiId:       gc.pkiID,
@@ -939,9 +959,10 @@ func (gc *gossipChannel) updateProperties(ledgerHeight uint64, chaincodes []*pro
 			SeqNum: uint64(time.Now().UnixNano()),
 		},
 		Properties: &proto.Properties{
-			LeftChannel:  leftChannel,
-			LedgerHeight: ledgerHeight,
-			Chaincodes:   chaincodes,
+			LeftChannel:         leftChannel,
+			LedgerHeight:        ledgerHeight,
+			Chaincodes:          chaincodes,
+			ArchivedBlockHeight: heightArchived,
 		},
 	}
 	m := &proto.GossipMessage{

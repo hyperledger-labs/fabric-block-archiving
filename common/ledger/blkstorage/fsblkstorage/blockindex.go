@@ -22,14 +22,16 @@ import (
 )
 
 const (
-	blockNumIdxKeyPrefix        = 'n'
-	blockHashIdxKeyPrefix       = 'h'
-	txIDIdxKeyPrefix            = 't'
-	blockNumTranNumIdxKeyPrefix = 'a'
-	indexCheckpointKeyStr       = "indexCheckpointKey"
+	blockNumIdxKeyPrefix           = 'n'
+	blockHashIdxKeyPrefix          = 'h'
+	txIDIdxKeyPrefix               = 't'
+	blockNumTranNumIdxKeyPrefix    = 'a'
+	indexCheckpointKeyStr          = "indexCheckpointKey"
+	indexArchivedBlockHeightKeyStr = "indexArchivedBlockHeightKey"
 )
 
 var indexCheckpointKey = []byte(indexCheckpointKeyStr)
+var indexArchivedBlockHeightKey = []byte(indexArchivedBlockHeightKeyStr)
 var errIndexEmpty = errors.New("NoBlockIndexed")
 
 type index interface {

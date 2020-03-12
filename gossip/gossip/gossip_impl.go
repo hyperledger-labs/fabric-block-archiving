@@ -11,6 +11,7 @@ import (
 	"fmt"
 	"net"
 	"reflect"
+	"strconv"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -775,6 +776,36 @@ func (g *Node) UpdateLedgerHeight(height uint64, channelID common.ChannelID) {
 		return
 	}
 	gc.UpdateLedgerHeight(height)
+}
+
+// UpdateArchivedBlockHeight updates the ledger height the peer
+// publishes to other peers in the channel
+func (g *Node) UpdateArchivedBlockHeight(height uint64, channelID common.ChannelID) {
+	gc := g.chanState.getGossipChannelByChainID(channelID)
+	if gc == nil {
+		g.logger.Warning("No such channel", channelID)
+		return
+	}
+	gc.UpdateArchivedBlockHeight(height)
+}
+
+// ReadArchivedBlockHeight read the archived block height from state info
+// received from  other peers in the channel
+func (g *Node) ReadArchivedBlockHeight(channelID common.ChannelID) uint64 {
+	max := uint64(0)
+	for _, p := range g.PeersOfChannel(channelID) {
+		if p.Properties == nil {
+			g.logger.Debug("Peer", p.PreferredEndpoint(), "doesn't have properties, skipping it")
+			continue
+		} else {
+			g.logger.Debug("On Peer", p.PreferredEndpoint(), ", the height of archived block is", strconv.Itoa(int(p.Properties.ArchivedBlockHeight)))
+		}
+		peerHeight := p.Properties.ArchivedBlockHeight
+		if max < peerHeight {
+			max = peerHeight
+		}
+	}
+	return max
 }
 
 // UpdateChaincodes updates the chaincodes the peer publishes

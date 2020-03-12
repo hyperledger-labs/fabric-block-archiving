@@ -18,7 +18,6 @@ import (
 	"github.com/hyperledger/fabric/core/deliverservice"
 	"github.com/hyperledger/fabric/core/transientstore"
 	"github.com/hyperledger/fabric/gossip/api"
-	"github.com/hyperledger/fabric/gossip/archive"
 	"github.com/hyperledger/fabric/gossip/comm"
 	"github.com/hyperledger/fabric/gossip/common"
 	gossipcommon "github.com/hyperledger/fabric/gossip/common"
@@ -67,6 +66,14 @@ type gossipSvc interface {
 	// UpdateLedgerHeight updates the ledger height the peer
 	// publishes to other peers in the channel
 	UpdateLedgerHeight(height uint64, channelID common.ChannelID)
+
+	// UpdateArchivedBlockHeight updates the archived block height the peer
+	// publishes to other peers in the channel
+	UpdateArchivedBlockHeight(height uint64, channelID common.ChannelID)
+
+	// ReadArchivedBlockHeight read the archived block height from state info
+	// received from  other peers in the channel
+	ReadArchivedBlockHeight(channelID common.ChannelID) uint64
 
 	// UpdateChaincodes updates the chaincodes the peer publishes
 	// to other peers in the channel
@@ -165,7 +172,6 @@ type GossipService struct {
 	chains          map[string]state.GossipStateProvider
 	leaderElection  map[string]election.LeaderElectionService
 	deliveryService map[string]deliverservice.DeliverService
-	archiveService  map[string]archive.Service
 	deliveryFactory DeliveryServiceFactory
 	lock            sync.RWMutex
 	mcs             api.MessageCryptoService
@@ -239,7 +245,6 @@ func New(
 		privateHandlers: make(map[string]privateHandler),
 		chains:          make(map[string]state.GossipStateProvider),
 		leaderElection:  make(map[string]election.LeaderElectionService),
-		archiveService:  make(map[string]archive.Service),
 		deliveryService: make(map[string]deliverservice.DeliverService),
 		deliveryFactory: &deliveryFactoryImpl{
 			signer:               peerIdentity,
@@ -385,8 +390,6 @@ func (g *GossipService) InitializeChannel(channelID string, ordererSource *order
 		logger.Warning("Delivery client is down won't be able to pull blocks for chain", channelID)
 	}
 
-	// Start the archive service
-	g.archiveService[channelID] = g.newArchiveComponent(channelID, coordinator)
 }
 
 func (g *GossipService) createSelfSignedData() protoutil.SignedData {
@@ -467,10 +470,6 @@ func (g *GossipService) newLeaderElectionComponent(channelID string, callback fu
 		LeaderElectionDuration:   g.serviceConfig.ElectionLeaderElectionDuration,
 	}
 	return election.NewLeaderElectionService(adapter, string(PKIid), callback, config)
-}
-
-func (g *GossipService) newArchiveComponent(channelID string, ledger gossipprivdata.Coordinator) archive.Service {
-	return archive.NewService(g, gossipcommon.ChannelID(channelID), ledger)
 }
 
 func (g *GossipService) amIinChannel(myOrg string, config Config) bool {

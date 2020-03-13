@@ -240,6 +240,7 @@ func (mgr *blockfileMgr) moveToNextFile() {
 	}
 	mgr.currentFileWriter = nextFileWriter
 	mgr.notifyArchiver(mgr.cpInfo.latestFileChunkSuffixNum)
+	mgr.index.setEndBlockOfBlockfileIndexed(uint64(mgr.cpInfo.latestFileChunkSuffixNum), mgr.cpInfo.lastBlockNumber)
 	mgr.updateCheckpoint(cpInfo)
 }
 

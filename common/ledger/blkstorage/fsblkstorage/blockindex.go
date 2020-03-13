@@ -22,20 +22,29 @@ import (
 )
 
 const (
-	blockNumIdxKeyPrefix           = 'n'
-	blockHashIdxKeyPrefix          = 'h'
-	txIDIdxKeyPrefix               = 't'
-	blockNumTranNumIdxKeyPrefix    = 'a'
-	indexCheckpointKeyStr          = "indexCheckpointKey"
-	indexArchivedBlockHeightKeyStr = "indexArchivedBlockHeightKey"
+	blockNumIdxKeyPrefix               = 'n'
+	blockHashIdxKeyPrefix              = 'h'
+	txIDIdxKeyPrefix                   = 't'
+	blockNumTranNumIdxKeyPrefix        = 'a'
+	blockfileNumKeyPrefix              = 'b'
+	indexCheckpointKeyStr              = "indexCheckpointKey"
+	indexArchivedBlockHeightKeyStr     = "indexArchivedBlockHeightKey"
+	indexArchivedBlockfileHeightKeyStr = "indexArchivedBlockfileHeightKey"
 )
 
 var indexCheckpointKey = []byte(indexCheckpointKeyStr)
 var indexArchivedBlockHeightKey = []byte(indexArchivedBlockHeightKeyStr)
+var indexArchivedBlockfileHeightKey = []byte(indexArchivedBlockfileHeightKeyStr)
 var errIndexEmpty = errors.New("NoBlockIndexed")
 
 type index interface {
 	getLastBlockIndexed() (uint64, error)
+	getLastArchivedBlockIndexed() (uint64, error)
+	setLastArchivedBlockIndexed(archivedBlockNum uint64) error
+	getLastArchivedBlockfileIndexed() (uint64, error)
+	setLastArchivedBlockfileIndexed(archivedBlockfileNum uint64) error
+	getEndBlockOfBlockfileIndexed(blockfileSuffix uint64) (uint64, error)
+	setEndBlockOfBlockfileIndexed(blockfileSuffix uint64, endBlockNum uint64) error
 	indexBlock(blockIdxInfo *blockIdxInfo) error
 	getBlockLocByHash(blockHash []byte) (*fileLocPointer, error)
 	getBlockLocByBlockNum(blockNum uint64) (*fileLocPointer, error)
@@ -79,6 +88,66 @@ func (index *blockIndex) getLastBlockIndexed() (uint64, error) {
 		return 0, errIndexEmpty
 	}
 	return decodeBlockNum(blockNumBytes), nil
+}
+
+func (index *blockIndex) getLastArchivedBlockIndexed() (uint64, error) {
+	var archivedBlockNumBytes []byte
+	var err error
+	if archivedBlockNumBytes, err = index.db.Get(indexArchivedBlockHeightKey); err != nil {
+		return 0, err
+	}
+	if archivedBlockNumBytes == nil {
+		return 0, errIndexEmpty
+	}
+	return decodeBlockNum(archivedBlockNumBytes), nil
+}
+
+func (index *blockIndex) setLastArchivedBlockIndexed(archivedBlockNum uint64) error {
+	var err error
+	if err = index.db.Put(indexArchivedBlockHeightKey, encodeBlockNum(archivedBlockNum), true); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (index *blockIndex) getLastArchivedBlockfileIndexed() (uint64, error) {
+	var archivedBlockfileNumBytes []byte
+	var err error
+	if archivedBlockfileNumBytes, err = index.db.Get(indexArchivedBlockfileHeightKey); err != nil {
+		return 0, err
+	}
+	if archivedBlockfileNumBytes == nil {
+		return 0, errIndexEmpty
+	}
+	return decodeBlockNum(archivedBlockfileNumBytes), nil
+}
+
+func (index *blockIndex) setLastArchivedBlockfileIndexed(archivedBlockfileNum uint64) error {
+	var err error
+	if err = index.db.Put(indexArchivedBlockfileHeightKey, encodeBlockNum(archivedBlockfileNum), true); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (index *blockIndex) getEndBlockOfBlockfileIndexed(blockfileSuffix uint64) (uint64, error) {
+	var endBlockNumBytes []byte
+	var err error
+	if endBlockNumBytes, err = index.db.Get(constructBlockfileNumKey(blockfileSuffix)); err != nil {
+		return 0, err
+	}
+	if endBlockNumBytes == nil {
+		return 0, errIndexEmpty
+	}
+	return decodeBlockNum(endBlockNumBytes), nil
+}
+
+func (index *blockIndex) setEndBlockOfBlockfileIndexed(blockfileSuffix uint64, endBlockNum uint64) error {
+	var err error
+	if err = index.db.Put(constructBlockfileNumKey(blockfileSuffix), encodeBlockNum(endBlockNum), true); err != nil {
+		return err
+	}
+	return nil
 }
 
 func (index *blockIndex) indexBlock(blockIdxInfo *blockIdxInfo) error {
@@ -305,6 +374,11 @@ func constructBlockNumTranNumKey(blockNum uint64, txNum uint64) []byte {
 	tranNumBytes := util.EncodeOrderPreservingVarUint64(txNum)
 	key := append(blkNumBytes, tranNumBytes...)
 	return append([]byte{blockNumTranNumIdxKeyPrefix}, key...)
+}
+
+func constructBlockfileNumKey(blockfileSuffix uint64) []byte {
+	blkfSuffixBytes := util.EncodeOrderPreservingVarUint64(blockfileSuffix)
+	return append([]byte{blockfileNumKeyPrefix}, blkfSuffixBytes...)
 }
 
 func encodeBlockNum(blockNum uint64) []byte {

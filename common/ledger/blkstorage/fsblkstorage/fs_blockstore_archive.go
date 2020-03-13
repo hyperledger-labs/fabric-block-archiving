@@ -91,7 +91,7 @@ func (mgr *blockfileMgr) notifyArchiver(fileNum int) {
 	}
 }
 
-func (mgr *blockfileMgr) SetArchiverChan(ch chan blockarchive.ArchiverMessage) {
+func (mgr *blockfileMgr) SetBlkFileFinalizingChan(ch chan blockarchive.ArchiverMessage) {
 	mgr.archiverChan = ch
 }
 

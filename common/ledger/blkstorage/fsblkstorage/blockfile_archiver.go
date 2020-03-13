@@ -14,6 +14,7 @@ import (
 )
 
 var loggerArchive = flogging.MustGetLogger("archiver.archive")
+var loggerArchiveClient = flogging.MustGetLogger("archiver.client")
 var loggerArchiveCmn = flogging.MustGetLogger("archiver.common")
 
 //
@@ -35,83 +36,119 @@ const (
 	maxRetryForCatchUp = 1000
 )
 
-// newBlockfileArchiver create a blockfile archiver instance
+// newBlockArchivingRoutine create a blockfile archiver instance
 // If peer runs in archiver mode, also do the following steps:
 // - Create a channel to receive a notification when blockfile is finalized
 // - Start go routine for listening to the notificationalso create a channel to receive a notification
-func newBlockfileArchiver(id string, mgr *blockfileMgr) *blockfileArchiver {
-	loggerArchive.Info("newBlockfileArchiver: ", id)
+func newBlockArchivingRoutine(id string, mgr *blockfileMgr) *blockfileArchiver {
+	loggerArchiveCmn.Info("newBlockArchivingRoutine: ", id)
 
 	blockfileDir := filepath.Join(blockarchive.BlockStorePath, ChainsDir, id)
 	arch := &blockfileArchiver{id, mgr, blockfileDir, 1, 0}
 
 	if blockarchive.IsArchiver || blockarchive.IsClient {
-		loggerArchive.Info("newBlockfileArchiver - creating archiverChan...")
+		loggerArchiveCmn.Info("newBlockArchivingRoutine - creating channel to notify the finalizing of each blockfile...")
 		// Create a new channel to allow the blockfileMgr to send messages to the archiver
-		archiverChan := make(chan blockarchive.ArchiverMessage, 5)
-		arch.mgr.SetArchiverChan(archiverChan)
-
+		blkFileFinalizingChan := make(chan blockarchive.ArchiverMessage, 5)
+		arch.mgr.SetBlkFileFinalizingChan(blkFileFinalizingChan)
 		// Start listening for messages from blockfileMgr
-		go arch.listenForBlockfiles(archiverChan)
+		loggerArchiveCmn.Info("newBlockArchivingRoutine - starting to listen the notification...")
+		go arch.listenForBlkFileFinalizing(blkFileFinalizingChan)
 	}
 
 	return arch
 }
 
-// listenForBlockfiles listens to a notificationalso create a channel to receive a notification
+// listenForBlkFileFinalizing listens to a notificationalso create a channel to receive a notification
 // The check routine to see if archiving is necessary is triggered here.
-func (arch *blockfileArchiver) listenForBlockfiles(archiverChan chan blockarchive.ArchiverMessage) {
-	loggerArchive.Info("listenForBlockfiles...")
+func (arch *blockfileArchiver) listenForBlkFileFinalizing(blkFileFinalizingChan chan blockarchive.ArchiverMessage) {
+	loggerArchiveCmn.Info("listenForBlkFileFinalizing...")
 
 	for {
 		select {
-		case msg, ok := <-archiverChan:
+		case msg, ok := <-blkFileFinalizingChan:
 			if !ok {
-				loggerArchive.Info("listenForBlockfiles - channel closed")
+				loggerArchiveCmn.Info("listenForBlkFileFinalizing - channel closed")
 				return
 			}
-			loggerArchive.Info("listenForBlockfiles - got message", msg)
+			loggerArchiveCmn.Info("listenForBlkFileFinalizing - got message", msg)
 			// Sanity check
 			if arch.chainID != msg.ChainID {
-				loggerArchive.Errorf("listenForBlockfiles - incorrect channel [%s] - [%s]! ", arch.chainID, msg.ChainID)
+				loggerArchiveCmn.Errorf("listenForBlkFileFinalizing - incorrect channel [%s] - [%s]! ", arch.chainID, msg.ChainID)
+			} else {
+				if blockarchive.IsArchiver {
+					arch.archiveBlockfilelIfNecessary()
+
+				} else if blockarchive.IsClient {
+					arch.discardBlockfilelIfNecessary()
+
+				}
 			}
-			arch.archiveChannelIfNecessary()
 		}
 	}
 
 }
 
-// archiveChannelIfNecessary is called every time a blockfile is finalized (reached the maximum size of data chunk).
+// discardBlockfilelIfNecessary is called every time a blockfile is finalized (reached the maximum size of data chunk) on client node.
+// If there are enough amount of blockfiles on local file system to be discarded, the actual discarding routine will be triggered.
+func (arch *blockfileArchiver) discardBlockfilelIfNecessary() {
+
+	// Running in context of Client
+
+	loggerArchiveClient.Infof("discardBlockfilelIfNecessary [%s]", arch.chainID)
+
+}
+
+// archiveBlockfilelIfNecessary is called every time a blockfile is finalized (reached the maximum size of data chunk) on archiver node.
 // If there are enough amount of blockfiles on local file system to be archived, the actual archiving routine will be triggered.
-func (arch *blockfileArchiver) archiveChannelIfNecessary() {
+func (arch *blockfileArchiver) archiveBlockfilelIfNecessary() {
 
-	loggerArchive.Infof("ArchiveChannelIfNecessary [%s]", arch.chainID)
+	// Running in context of Archiver
 
-	// numBlockfileEachArchiving := blockarchive.NumBlockfileEachArchiving
+	loggerArchive.Infof("archiveBlockfilelIfNecessary [%s]", arch.chainID)
 
-	if arch.isNeedArchiving() {
-		loggerArchive.Infof("Discarding blockfile [%s]", arch.chainID)
+	var archivedBlockfileSuffix, endBlockNum uint64
+	// var archivedBlockHeight uint64
+	var err error
 
-		// for i := 0; i < numBlockfileEachArchiving; i++ {
-		// 	for j := 0; j < maxRetryForCatchUp; j++ {
-		// 		// alreadyArchived == true means the blockfile has already been archived.
-		// 		// When returning alreadyArchived = true, then retrying to the next blockfile
-		// 		// until occuring the actual archiving within the maximum retry count
-		// 		if alreadyArchived, err := arch.archiveBlockfile(arch.nextBlockfileNum); err != nil && alreadyArchived != true {
-		// 			loggerArchive.Info("Failed: Archiver")
-		// 			break
-		// 		} else {
-		// 			loggerArchive.Info("Succeeded: Archiver")
-		// 			arch.nextBlockfileNum++
-		// 			if alreadyArchived == false {
-		// 				break
-		// 			}
-		// 		}
-		// 	}
-		// }
-	} else {
-		loggerArchive.Infof("[%s] There is no candidate to be deleted", arch.chainID)
+	// get last archived blockfile num
+	if archivedBlockfileSuffix, err = arch.mgr.index.getLastArchivedBlockfileIndexed(); err != nil {
+		loggerArchive.Warn("Failed to get last archived blockfile suffix")
+		archivedBlockfileSuffix = 0
+		// return
 	}
+
+	if endBlockNum, err = arch.mgr.index.getEndBlockOfBlockfileIndexed(archivedBlockfileSuffix); err != nil {
+		loggerArchive.Warn("Failed to get end block num")
+		endBlockNum = 0
+		// return
+	}
+	// // get current archived block height from index DB
+	// if archivedBlockHeight, err = arch.mgr.index.getLastArchivedBlockIndexed(); err != nil {
+	// 	loggerArchive.Error("Failed to get last archived block number")
+	// 	return
+	// }
+
+	// Retrieve current ledger height from blockfile manager
+	currentBlockHeigh := arch.mgr.getBlockchainInfo().Height
+
+	numKeepLatestBlocks := uint64(blockarchive.NumKeepLatestBlocks)
+
+	loggerArchive.Infof("ledger height : %d  vs  (next last) archived block : %d", currentBlockHeigh, endBlockNum)
+
+	for (currentBlockHeigh - endBlockNum) > numKeepLatestBlocks {
+		loggerArchive.Infof("archiving blockfile_%06d ( - block #%d)", archivedBlockfileSuffix, endBlockNum)
+
+		archivedBlockfileSuffix = archivedBlockfileSuffix + 1
+		if endBlockNum, err = arch.mgr.index.getEndBlockOfBlockfileIndexed(archivedBlockfileSuffix); err != nil {
+			loggerArchive.Error("Failed to get end block num")
+			break
+		}
+	}
+	arch.mgr.index.setLastArchivedBlockfileIndexed(archivedBlockfileSuffix)
+	arch.mgr.index.setLastArchivedBlockIndexed(endBlockNum)
+	blockarchive.GossipService.UpdateArchivedBlockHeight(endBlockNum, common.ChannelID(arch.chainID))
+
 }
 
 // archiveBlockfile sends a blockfile to the Block Archiver repository and deletes it if required
@@ -180,10 +217,34 @@ func (arch *blockfileArchiver) deleteArchivedBlockfile(fileNum int) error {
 // isNeedArchiving - returns whether archiving should be triggered or not
 func (arch *blockfileArchiver) isNeedArchiving() bool {
 
+	var archivedBlockHeight uint64
+	var err error
+	// Retrieve current archived block height from index DB
+	if archivedBlockHeight, err = arch.mgr.index.getLastArchivedBlockIndexed(); err != nil {
+		loggerArchive.Error("Failed to get last archived block number")
+		return false
+	}
+
+	// Retrieve current ledger height from blockfile manager
+	currentBlockHeigh := arch.mgr.getBlockchainInfo().Height
+
+	numKeepLatestBlocks := blockarchive.NumKeepLatestBlocks
+	loggerArchive.Infof("ledger height : %d  vs  last archived block : %d", currentBlockHeigh, archivedBlockHeight)
+	if currentBlockHeigh-archivedBlockHeight > uint64(numKeepLatestBlocks) {
+		return true
+	} else {
+		return false
+	}
+}
+
+// isNeedArchiving - returns whether archiving should be triggered or not
+func (arch *blockfileArchiver) isNeedDiscarding() bool {
+
+	// Retrieve current archived block height from index DB
 	remoteArchivedBlockHeight := blockarchive.GossipService.ReadArchivedBlockHeight(common.ChannelID(arch.chainID))
 	localCurrentBlockHeigh := arch.mgr.getBlockchainInfo().Height
 	localDiscardedBlockHeight := arch.currDiscardedBlockHeigh
 	// numKeepLatestBlocks := blockarchive.NumKeepLatestBlocks
-	loggerArchive.Infof("local : %d  vs  archived : %d  vs  discarded : %d", localCurrentBlockHeigh, remoteArchivedBlockHeight, localDiscardedBlockHeight)
+	loggerArchiveClient.Infof("ledger height : %d  vs  last archived block : %d  vs  discarded : %d", localCurrentBlockHeigh, remoteArchivedBlockHeight, localDiscardedBlockHeight)
 	return false
 }

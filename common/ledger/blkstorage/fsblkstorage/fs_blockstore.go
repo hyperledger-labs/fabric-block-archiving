@@ -45,7 +45,7 @@ func newFsBlockStore(id string, conf *Conf, indexConfig *blkstorage.IndexConfig,
 	info := fileMgr.getBlockchainInfo()
 	ledgerStats.updateBlockchainHeight(info.Height)
 
-	return &fsBlockStore{id, conf, fileMgr, ledgerStats, newBlockfileArchiver(id, fileMgr)}
+	return &fsBlockStore{id, conf, fileMgr, ledgerStats, newBlockArchivingRoutine(id, fileMgr)}
 }
 
 // AddBlock adds a new block

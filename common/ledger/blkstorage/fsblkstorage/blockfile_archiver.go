@@ -97,6 +97,50 @@ func (arch *blockfileArchiver) discardBlockfilelIfNecessary() {
 
 	loggerArchiveClient.Infof("discardBlockfilelIfNecessary [%s]", arch.chainID)
 
+	// get last archived block number from state info
+	currentArchivedBlockHeigh := blockarchive.GossipService.ReadArchivedBlockHeight(common.ChannelID(arch.chainID))
+
+	// get last archived blockfile num
+	var discardedBlockfileSuffix uint64
+	var err error
+	if discardedBlockfileSuffix, err = arch.mgr.index.getLastArchivedBlockfileIndexed(); err != nil {
+		loggerArchiveClient.Info("Failed to get last archived blockfile suffix")
+		discardedBlockfileSuffix = 0
+	}
+
+	// next target blockfile
+	nextDiscardedBlockfileSuffix := discardedBlockfileSuffix + 1
+
+	numKeepLatestBlocks := uint64(blockarchive.NumKeepLatestBlocks)
+
+	var nextEndBlockNum uint64
+	if nextEndBlockNum, err = arch.mgr.index.getEndBlockOfBlockfileIndexed(nextDiscardedBlockfileSuffix); err != nil {
+		loggerArchiveClient.Error("Failed to get end block num")
+		return
+	}
+
+	loggerArchiveClient.Infof("current archived block height:%d  vs  block discard next:%d ( keep:%d )", currentArchivedBlockHeigh, nextEndBlockNum, numKeepLatestBlocks)
+
+	var newDiscardedBlockfileSuffix uint64
+	for currentArchivedBlockHeigh > nextEndBlockNum && (currentArchivedBlockHeigh-nextEndBlockNum) > numKeepLatestBlocks {
+		loggerArchiveClient.Infof("discarding blockfile_%06d (end with block #%d)", nextDiscardedBlockfileSuffix, nextEndBlockNum)
+
+		// Delete nextDiscardedBlockfileSuffix
+		if err := arch.deleteArchivedBlockfile(int(nextDiscardedBlockfileSuffix)); err != nil {
+			loggerArchiveClient.Errorf("Failed to delete blockfile_%06d", nextDiscardedBlockfileSuffix)
+			return
+		}
+
+		// After deleting
+		newDiscardedBlockfileSuffix = nextDiscardedBlockfileSuffix
+		nextDiscardedBlockfileSuffix = nextDiscardedBlockfileSuffix + 1
+		if nextEndBlockNum, err = arch.mgr.index.getEndBlockOfBlockfileIndexed(nextDiscardedBlockfileSuffix); err != nil {
+			loggerArchiveClient.Error("Failed to get end block num")
+			return
+		}
+	}
+	arch.mgr.index.setLastArchivedBlockfileIndexed(newDiscardedBlockfileSuffix)
+
 }
 
 // archiveBlockfilelIfNecessary is called every time a blockfile is finalized (reached the maximum size of data chunk) on archiver node.
@@ -107,47 +151,44 @@ func (arch *blockfileArchiver) archiveBlockfilelIfNecessary() {
 
 	loggerArchive.Infof("archiveBlockfilelIfNecessary [%s]", arch.chainID)
 
-	var archivedBlockfileSuffix, endBlockNum uint64
-	// var archivedBlockHeight uint64
+	var archivedBlockfileSuffix, newArchivedBlockfileSuffix, nextEndBlockNum, newEndBlockNum uint64
 	var err error
 
 	// get last archived blockfile num
 	if archivedBlockfileSuffix, err = arch.mgr.index.getLastArchivedBlockfileIndexed(); err != nil {
-		loggerArchive.Warn("Failed to get last archived blockfile suffix")
+		loggerArchive.Info("Failed to get last archived blockfile suffix")
 		archivedBlockfileSuffix = 0
-		// return
 	}
 
-	if endBlockNum, err = arch.mgr.index.getEndBlockOfBlockfileIndexed(archivedBlockfileSuffix); err != nil {
-		loggerArchive.Warn("Failed to get end block num")
-		endBlockNum = 0
-		// return
+	// next target blockfile
+	nextArchivedBlockfileSuffix := archivedBlockfileSuffix + 1
+
+	if nextEndBlockNum, err = arch.mgr.index.getEndBlockOfBlockfileIndexed(nextArchivedBlockfileSuffix); err != nil {
+		loggerArchive.Error("Failed to get end block num")
+		return
 	}
-	// // get current archived block height from index DB
-	// if archivedBlockHeight, err = arch.mgr.index.getLastArchivedBlockIndexed(); err != nil {
-	// 	loggerArchive.Error("Failed to get last archived block number")
-	// 	return
-	// }
 
 	// Retrieve current ledger height from blockfile manager
-	currentBlockHeigh := arch.mgr.getBlockchainInfo().Height
+	currentBlockHeight := arch.mgr.getBlockchainInfo().Height
 
 	numKeepLatestBlocks := uint64(blockarchive.NumKeepLatestBlocks)
 
-	loggerArchive.Infof("ledger height : %d  vs  (next last) archived block : %d", currentBlockHeigh, endBlockNum)
+	loggerArchive.Infof("current block height:%d  vs  block archived in next archival:%d ( keep:%d )", currentBlockHeight, nextEndBlockNum, numKeepLatestBlocks)
 
-	for (currentBlockHeigh - endBlockNum) > numKeepLatestBlocks {
-		loggerArchive.Infof("archiving blockfile_%06d ( - block #%d)", archivedBlockfileSuffix, endBlockNum)
+	for (currentBlockHeight - nextEndBlockNum) > numKeepLatestBlocks {
+		loggerArchive.Infof("archiving blockfile_%06d (end with block #%d)", nextArchivedBlockfileSuffix, nextEndBlockNum)
 
-		archivedBlockfileSuffix = archivedBlockfileSuffix + 1
-		if endBlockNum, err = arch.mgr.index.getEndBlockOfBlockfileIndexed(archivedBlockfileSuffix); err != nil {
+		newEndBlockNum = nextEndBlockNum
+		newArchivedBlockfileSuffix = nextArchivedBlockfileSuffix
+		nextArchivedBlockfileSuffix = nextArchivedBlockfileSuffix + 1
+		if newEndBlockNum, err = arch.mgr.index.getEndBlockOfBlockfileIndexed(nextArchivedBlockfileSuffix); err != nil {
 			loggerArchive.Error("Failed to get end block num")
 			break
 		}
 	}
-	arch.mgr.index.setLastArchivedBlockfileIndexed(archivedBlockfileSuffix)
-	arch.mgr.index.setLastArchivedBlockIndexed(endBlockNum)
-	blockarchive.GossipService.UpdateArchivedBlockHeight(endBlockNum, common.ChannelID(arch.chainID))
+	arch.mgr.index.setLastArchivedBlockfileIndexed(newArchivedBlockfileSuffix)
+	arch.mgr.index.setLastArchivedBlockIndexed(newEndBlockNum)
+	blockarchive.GossipService.UpdateArchivedBlockHeight(newEndBlockNum, common.ChannelID(arch.chainID))
 
 }
 
@@ -226,11 +267,11 @@ func (arch *blockfileArchiver) isNeedArchiving() bool {
 	}
 
 	// Retrieve current ledger height from blockfile manager
-	currentBlockHeigh := arch.mgr.getBlockchainInfo().Height
+	currentBlockHeight := arch.mgr.getBlockchainInfo().Height
 
 	numKeepLatestBlocks := blockarchive.NumKeepLatestBlocks
-	loggerArchive.Infof("ledger height : %d  vs  last archived block : %d", currentBlockHeigh, archivedBlockHeight)
-	if currentBlockHeigh-archivedBlockHeight > uint64(numKeepLatestBlocks) {
+	loggerArchive.Infof("ledger height : %d  vs  last archived block : %d", currentBlockHeight, archivedBlockHeight)
+	if currentBlockHeight-archivedBlockHeight > uint64(numKeepLatestBlocks) {
 		return true
 	} else {
 		return false

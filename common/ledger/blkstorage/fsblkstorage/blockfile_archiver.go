@@ -119,10 +119,13 @@ func (arch *blockfileArchiver) discardBlockfilelIfNecessary() {
 		return
 	}
 
-	loggerArchiveClient.Infof("current archived block height:%d  vs  block discard next:%d ( keep:%d )", currentArchivedBlockHeigh, nextEndBlockNum, numKeepLatestBlocks)
+	currentBlockHeight := arch.mgr.getBlockchainInfo().Height
+
+	loggerArchiveClient.Infof("current ledger:%d  vs  current archived block:%d  vs  block discard next:%d ( keep:%d )",
+		currentBlockHeight, currentArchivedBlockHeigh, nextEndBlockNum, numKeepLatestBlocks)
 
 	var newDiscardedBlockfileSuffix uint64
-	for currentArchivedBlockHeigh > nextEndBlockNum && (currentArchivedBlockHeigh-nextEndBlockNum) > numKeepLatestBlocks {
+	for currentArchivedBlockHeigh > nextEndBlockNum && (currentBlockHeight-nextEndBlockNum) > numKeepLatestBlocks {
 		loggerArchiveClient.Infof("discarding blockfile_%06d (end with block #%d)", nextDiscardedBlockfileSuffix, nextEndBlockNum)
 
 		// Delete nextDiscardedBlockfileSuffix
@@ -178,13 +181,17 @@ func (arch *blockfileArchiver) archiveBlockfilelIfNecessary() {
 	for (currentBlockHeight - nextEndBlockNum) > numKeepLatestBlocks {
 		loggerArchive.Infof("archiving blockfile_%06d (end with block #%d)", nextArchivedBlockfileSuffix, nextEndBlockNum)
 
+		// Values to be stored into index DB
 		newEndBlockNum = nextEndBlockNum
 		newArchivedBlockfileSuffix = nextArchivedBlockfileSuffix
+
+		// Update for next iteration
 		nextArchivedBlockfileSuffix = nextArchivedBlockfileSuffix + 1
-		if newEndBlockNum, err = arch.mgr.index.getEndBlockOfBlockfileIndexed(nextArchivedBlockfileSuffix); err != nil {
+		if nextEndBlockNum, err = arch.mgr.index.getEndBlockOfBlockfileIndexed(nextArchivedBlockfileSuffix); err != nil {
 			loggerArchive.Error("Failed to get end block num")
 			break
 		}
+		loggerArchive.Infof("continue... block archived in next archival:%d", nextEndBlockNum)
 	}
 	arch.mgr.index.setLastArchivedBlockfileIndexed(newArchivedBlockfileSuffix)
 	arch.mgr.index.setLastArchivedBlockIndexed(newEndBlockNum)

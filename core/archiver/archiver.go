@@ -22,12 +22,12 @@ func InitBlockArchiver(gossipService *service.GossipService) {
 
 	initBlockArchiverParams(gossipService)
 
-	loggerArchive.Info("Archiver.InitBlockArchiver isArchiver=", blockarchive.IsArchiver, " isClient-", blockarchive.IsClient)
+	loggerArchive.Info("Archiver.InitBlockArchiver isArchiver=", blockarchive.IsArchiver, " isClient=", blockarchive.IsClient)
 }
 
 func initBlockArchiverParams(gossipService *service.GossipService) {
 	blockarchive.IsArchiver = viper.GetBool("peer.archiver.enabled")
-	if blockarchive.IsArchiver {
+	if blockarchive.IsArchiver || blockarchive.IsClient {
 		blockarchive.NumBlockfileEachArchiving, blockarchive.NumKeepLatestBlocks = ledgerconfig.GetArchivingParameters()
 	} else {
 		blockarchive.IsClient = viper.GetBool("peer.archiving.enabled")

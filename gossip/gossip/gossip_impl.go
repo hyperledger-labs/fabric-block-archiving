@@ -781,6 +781,7 @@ func (g *Node) UpdateLedgerHeight(height uint64, channelID common.ChannelID) {
 // UpdateArchivedBlockHeight updates the ledger height the peer
 // publishes to other peers in the channel
 func (g *Node) UpdateArchivedBlockHeight(height uint64, channelID common.ChannelID) {
+	g.logger.Info("Archived Block Height", height, "ChannelID", channelID)
 	gc := g.chanState.getGossipChannelByChainID(channelID)
 	if gc == nil {
 		g.logger.Warning("No such channel", channelID)

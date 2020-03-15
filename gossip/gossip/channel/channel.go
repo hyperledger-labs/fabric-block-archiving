@@ -919,7 +919,7 @@ func (gc *gossipChannel) UpdateArchivedBlockHeight(heightArchived uint64) {
 	if prevMsg := gc.stateInfoMsg; prevMsg != nil {
 		leftChannel = prevMsg.GetStateInfo().Properties.LeftChannel
 		chaincodes = prevMsg.GetStateInfo().Properties.Chaincodes
-		height = prevMsg.GetStateInfo().Properties.ArchivedBlockHeight
+		height = prevMsg.GetStateInfo().Properties.LedgerHeight
 	}
 	gc.updateProperties(height, chaincodes, leftChannel, heightArchived)
 }

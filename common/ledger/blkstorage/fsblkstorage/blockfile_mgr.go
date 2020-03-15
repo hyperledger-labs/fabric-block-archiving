@@ -239,8 +239,8 @@ func (mgr *blockfileMgr) moveToNextFile() {
 		panic(fmt.Sprintf("Could not save next block file info to db: %s", err))
 	}
 	mgr.currentFileWriter = nextFileWriter
-	mgr.notifyArchiver(mgr.cpInfo.latestFileChunkSuffixNum)
 	mgr.index.setEndBlockOfBlockfileIndexed(uint64(mgr.cpInfo.latestFileChunkSuffixNum), mgr.cpInfo.lastBlockNumber)
+	mgr.notifyArchiver(mgr.cpInfo.latestFileChunkSuffixNum)
 	mgr.updateCheckpoint(cpInfo)
 }
 

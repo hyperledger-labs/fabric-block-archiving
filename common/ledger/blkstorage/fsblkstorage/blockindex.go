@@ -104,6 +104,7 @@ func (index *blockIndex) getLastArchivedBlockIndexed() (uint64, error) {
 
 func (index *blockIndex) setLastArchivedBlockIndexed(archivedBlockNum uint64) error {
 	var err error
+	loggerArchive.Info("archivedBlockNum", archivedBlockNum)
 	if err = index.db.Put(indexArchivedBlockHeightKey, encodeBlockNum(archivedBlockNum), true); err != nil {
 		return err
 	}
@@ -124,6 +125,7 @@ func (index *blockIndex) getLastArchivedBlockfileIndexed() (uint64, error) {
 
 func (index *blockIndex) setLastArchivedBlockfileIndexed(archivedBlockfileNum uint64) error {
 	var err error
+	loggerArchive.Info("archivedBlockfileNum", archivedBlockfileNum)
 	if err = index.db.Put(indexArchivedBlockfileHeightKey, encodeBlockNum(archivedBlockfileNum), true); err != nil {
 		return err
 	}
@@ -144,6 +146,7 @@ func (index *blockIndex) getEndBlockOfBlockfileIndexed(blockfileSuffix uint64) (
 
 func (index *blockIndex) setEndBlockOfBlockfileIndexed(blockfileSuffix uint64, endBlockNum uint64) error {
 	var err error
+	loggerArchive.Info("blockfileSuffix", blockfileSuffix, "endBlockNum", endBlockNum)
 	if err = index.db.Put(constructBlockfileNumKey(blockfileSuffix), encodeBlockNum(endBlockNum), true); err != nil {
 		return err
 	}

@@ -624,6 +624,7 @@ func (s *GossipStateProviderImpl) maxAvailableLedgerHeight() uint64 {
 			logger.Debug("Peer", p.PreferredEndpoint(), "doesn't have properties, skipping it")
 			continue
 		}
+		logger.Info("archive: ArchivedBlockHeight", p.Properties.ArchivedBlockHeight)
 		peerHeight := p.Properties.LedgerHeight
 		if max < peerHeight {
 			max = peerHeight

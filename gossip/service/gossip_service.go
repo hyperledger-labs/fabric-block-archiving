@@ -9,6 +9,7 @@ package service
 import (
 	"sync"
 
+	gprotocommon "github.com/hyperledger/fabric-protos-go/common"
 	gproto "github.com/hyperledger/fabric-protos-go/gossip"
 	tspb "github.com/hyperledger/fabric-protos-go/transientstore"
 	corecomm "github.com/hyperledger/fabric/core/comm"
@@ -436,6 +437,14 @@ func (g *GossipService) AddPayload(channelID string, payload *gproto.Payload) er
 	g.lock.RLock()
 	defer g.lock.RUnlock()
 	return g.chains[channelID].AddPayload(payload)
+}
+
+// RetrieveBlockFromArchiver retrieve archived block from archiver
+func (g *GossipService) RetrieveBlockFromArchiver(blockNum uint64, channelID common.ChannelID) (*gprotocommon.Block, error) {
+	logger.Infof("block: %d   channel: %s", blockNum, string(channelID))
+	g.lock.RLock()
+	defer g.lock.RUnlock()
+	return g.chains[string(channelID)].RetrieveBlockFromArchiver(blockNum)
 }
 
 // Stop stops the gossip component

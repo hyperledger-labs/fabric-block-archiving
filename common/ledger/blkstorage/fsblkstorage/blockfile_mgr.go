@@ -18,6 +18,7 @@ import (
 	"github.com/hyperledger/fabric-protos-go/common"
 	"github.com/hyperledger/fabric-protos-go/peer"
 	"github.com/hyperledger/fabric/common/flogging"
+	commonledger "github.com/hyperledger/fabric/common/ledger"
 	"github.com/hyperledger/fabric/common/ledger/blkstorage"
 	"github.com/hyperledger/fabric/common/ledger/blockarchive"
 	"github.com/hyperledger/fabric/common/ledger/util"
@@ -513,7 +514,7 @@ func (mgr *blockfileMgr) retrieveBlockHeaderByNumber(blockNum uint64) (*common.B
 	return info.blockHeader, nil
 }
 
-func (mgr *blockfileMgr) retrieveBlocks(startNum uint64) (*blocksItr, error) {
+func (mgr *blockfileMgr) retrieveBlocks(startNum uint64) (commonledger.ResultsIterator, error) {
 	return newBlockItr(mgr, startNum), nil
 }
 

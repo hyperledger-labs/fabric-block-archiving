@@ -82,7 +82,7 @@ GO_VER = $(shell grep "GO_VER" ci.properties |cut -d'=' -f2-)
 GO_TAGS ?=
 
 RELEASE_EXES = orderer $(TOOLS_EXES)
-RELEASE_IMAGES = baseos ccenv orderer peer tools blkarchiver-repo
+RELEASE_IMAGES = baseos ccenv orderer peer tools
 RELEASE_PLATFORMS = darwin-amd64 linux-amd64 linux-ppc64le linux-s390x windows-amd64
 TOOLS_EXES = configtxgen configtxlator cryptogen discover idemixgen peer
 
@@ -93,7 +93,6 @@ pkgmap.discover       := $(PKGNAME)/cmd/discover
 pkgmap.idemixgen      := $(PKGNAME)/cmd/idemixgen
 pkgmap.orderer        := $(PKGNAME)/cmd/orderer
 pkgmap.peer           := $(PKGNAME)/cmd/peer
-pkgmap.ledgerfsck     := $(PKGNAME)/cmd/ledgerfsck
 
 .DEFAULT_GOAL := all
 
@@ -232,7 +231,6 @@ $(BUILD_DIR)/images/%/$(DUMMY):
 	docker tag $(DOCKER_NS)/fabric-$* $(DOCKER_NS)/fabric-$*:$(BASE_VERSION)
 	docker tag $(DOCKER_NS)/fabric-$* $(DOCKER_NS)/fabric-$*:$(TWO_DIGIT_VERSION)
 	docker tag $(DOCKER_NS)/fabric-$* $(DOCKER_NS)/fabric-$*:$(DOCKER_TAG)
-	docker tag $(DOCKER_NS)/fabric-$* $(DOCKER_NS)/fabric-$*:$(ARCH)-blkvault
 	@touch $@
 
 # builds release packages for the host platform

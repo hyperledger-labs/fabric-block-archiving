@@ -10,14 +10,11 @@ import (
 	"bufio"
 	"fmt"
 	"io"
-	"net"
 	"os"
-	"path/filepath"
 
 	"github.com/golang/protobuf/proto"
 	"github.com/hyperledger/fabric/core/ledger"
 	"github.com/pkg/errors"
-	"github.com/pkg/sftp"
 	"golang.org/x/crypto/ssh"
 )
 
@@ -62,41 +59,6 @@ type blockPlacementInfo struct {
 	blockBytesOffset int64
 }
 
-func openFileThroughSFTP(path string, archiveConfig *ledger.ArchiveConfig) (blockFile, *ssh.Client, error) {
-
-	logger.Info("openFileThroughSFTP")
-	config := &ssh.ClientConfig{
-		User: "root",
-		HostKeyCallback: func(hostname string, remote net.Addr, key ssh.PublicKey) error {
-			return nil
-		},
-		Auth: []ssh.AuthMethod{
-			ssh.Password("blkstore"),
-		},
-	}
-	config.SetDefaults()
-	sshConn, err := ssh.Dial("tcp", archiveConfig.BlockArchiverURL, config)
-	if err != nil {
-		return nil, nil, err
-	}
-	// defer sshConn.Close()
-
-	client, err := sftp.NewClient(sshConn)
-	if err != nil {
-		return nil, nil, err
-	}
-	// defer client.Close()
-
-	dstFilePath := filepath.Join(archiveConfig.BlockArchiverDir, path)
-	dstFile, err := client.Open(dstFilePath)
-	if err != nil {
-		return nil, nil, err
-	}
-	// defer dstFile.Close()
-
-	return dstFile, sshConn, nil
-}
-
 ///////////////////////////////////
 // blockfileStream functions
 ////////////////////////////////////
@@ -107,10 +69,8 @@ func newBlockfileStream(rootDir string, fileNum int, startOffset int64, archiveC
 	var err error
 	var sshClient *ssh.Client
 	if file, err = os.OpenFile(filePath, os.O_RDONLY, 0600); err != nil {
-		if file, sshClient, err = openFileThroughSFTP(filePath, archiveConfig); err != nil {
-			logger.Error(err)
-			return nil, errors.Wrapf(err, "error opening block file %s", filePath)
-		}
+		logger.Error(err)
+		return nil, errors.Wrapf(err, "error opening block file %s", filePath)
 	}
 
 	var newPosition int64

@@ -11,6 +11,8 @@ import (
 	"github.com/hyperledger/fabric/common/flogging"
 	"github.com/hyperledger/fabric/common/ledger/blockarchive"
 	"github.com/hyperledger/fabric/gossip/common"
+	"github.com/hyperledger/fabric/protoutil"
+	"github.com/pkg/errors"
 )
 
 var loggerArchive = flogging.MustGetLogger("archiver.archive")
@@ -127,11 +129,14 @@ func (arch *blockfileArchiver) discardBlockfilelIfNecessary() {
 	var newDiscardedBlockfileSuffix uint64
 	for currentArchivedBlockHeigh > nextEndBlockNum && (currentBlockHeight-nextEndBlockNum) > numKeepLatestBlocks {
 		loggerArchiveClient.Infof("discarding blockfile_%06d (end with block #%d)", nextDiscardedBlockfileSuffix, nextEndBlockNum)
-
-		// Delete nextDiscardedBlockfileSuffix
-		if err := arch.deleteArchivedBlockfile(int(nextDiscardedBlockfileSuffix)); err != nil {
-			loggerArchiveClient.Errorf("Failed to delete blockfile_%06d", nextDiscardedBlockfileSuffix)
-			return
+		if !arch.hasConfigBlockInBlockfile(nextDiscardedBlockfileSuffix) {
+			// Delete nextDiscardedBlockfileSuffix
+			if err := arch.deleteArchivedBlockfile(int(nextDiscardedBlockfileSuffix)); err != nil {
+				loggerArchiveClient.Errorf("Failed to delete blockfile_%06d", nextDiscardedBlockfileSuffix)
+				break
+			}
+		} else {
+			loggerArchiveClient.Infof("Skip discarding blockfile_%06d as it includes config block", nextDiscardedBlockfileSuffix)
 		}
 
 		// After deleting
@@ -139,11 +144,45 @@ func (arch *blockfileArchiver) discardBlockfilelIfNecessary() {
 		nextDiscardedBlockfileSuffix = nextDiscardedBlockfileSuffix + 1
 		if nextEndBlockNum, err = arch.mgr.index.getEndBlockOfBlockfileIndexed(nextDiscardedBlockfileSuffix); err != nil {
 			loggerArchiveClient.Error("Failed to get end block num")
-			return
+			break
 		}
 	}
-	arch.mgr.index.setLastArchivedBlockfileIndexed(newDiscardedBlockfileSuffix)
 
+	if newDiscardedBlockfileSuffix > 0 {
+		arch.mgr.index.setLastArchivedBlockfileIndexed(newDiscardedBlockfileSuffix)
+	}
+
+}
+
+func (arch *blockfileArchiver) hasConfigBlockInBlockfile(blockfileNum uint64) bool {
+	configBlk, err := arch.getConfigBlockNum()
+	if err != nil {
+		return true
+	}
+	end, err := arch.mgr.index.getEndBlockOfBlockfileIndexed(blockfileNum)
+	if err != nil {
+		return true
+	}
+	start, err := arch.mgr.index.getEndBlockOfBlockfileIndexed(blockfileNum - 1)
+	if err != nil {
+		return true
+	}
+	return configBlk > start && configBlk <= end
+}
+
+func (arch *blockfileArchiver) getConfigBlockNum() (uint64, error) {
+	latest, _ := arch.mgr.index.getLastBlockIndexed()
+	block, err := arch.mgr.retrieveBlockByNumber(latest)
+	if err != nil {
+		loggerBlkStreamArchive.Error("Failed to retrieve block")
+		return 0, errors.New("Failed to retrieve block")
+	}
+	configBlockNum, err := protoutil.GetLastConfigIndexFromBlock(block)
+	if err != nil {
+		loggerBlkStreamArchive.Error("Failed to retrieve info of config block")
+		return 0, errors.New("Failed to retrieve info of config block")
+	}
+	return configBlockNum, nil
 }
 
 // archiveBlockfilelIfNecessary is called every time a blockfile is finalized (reached the maximum size of data chunk) on archiver node.
@@ -283,16 +322,4 @@ func (arch *blockfileArchiver) isNeedArchiving() bool {
 	} else {
 		return false
 	}
-}
-
-// isNeedArchiving - returns whether archiving should be triggered or not
-func (arch *blockfileArchiver) isNeedDiscarding() bool {
-
-	// Retrieve current archived block height from index DB
-	remoteArchivedBlockHeight := blockarchive.GossipService.ReadArchivedBlockHeight(common.ChannelID(arch.chainID))
-	localCurrentBlockHeigh := arch.mgr.getBlockchainInfo().Height
-	localDiscardedBlockHeight := arch.currDiscardedBlockHeigh
-	// numKeepLatestBlocks := blockarchive.NumKeepLatestBlocks
-	loggerArchiveClient.Infof("ledger height : %d  vs  last archived block : %d  vs  discarded : %d", localCurrentBlockHeigh, remoteArchivedBlockHeight, localDiscardedBlockHeight)
-	return false
 }

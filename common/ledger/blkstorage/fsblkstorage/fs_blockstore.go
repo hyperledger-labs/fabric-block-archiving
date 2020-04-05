@@ -23,7 +23,9 @@ import (
 	"github.com/hyperledger/fabric-protos-go/peer"
 	"github.com/hyperledger/fabric/common/ledger"
 	"github.com/hyperledger/fabric/common/ledger/blkstorage"
+	"github.com/hyperledger/fabric/common/ledger/blockarchive"
 	"github.com/hyperledger/fabric/common/ledger/util/leveldbhelper"
+	gossipcommon "github.com/hyperledger/fabric/gossip/common"
 )
 
 // fsBlockStore - filesystem based implementation for `BlockStore`
@@ -67,34 +69,46 @@ func (store *fsBlockStore) GetBlockchainInfo() (*common.BlockchainInfo, error) {
 
 // RetrieveBlocks returns an iterator that can be used for iterating over a range of blocks
 func (store *fsBlockStore) RetrieveBlocks(startNum uint64) (ledger.ResultsIterator, error) {
+	loggerBlkStreamArchive.Info("To be supported")
 	return store.fileMgr.retrieveBlocks(startNum)
 }
 
 // RetrieveBlockByHash returns the block for given block-hash
 func (store *fsBlockStore) RetrieveBlockByHash(blockHash []byte) (*common.Block, error) {
+	loggerBlkStreamArchive.Info("To be supported")
 	return store.fileMgr.retrieveBlockByHash(blockHash)
 }
 
 // RetrieveBlockByNumber returns the block at a given blockchain height
 func (store *fsBlockStore) RetrieveBlockByNumber(blockNum uint64) (*common.Block, error) {
-	return store.fileMgr.retrieveBlockByNumber(blockNum)
+	loggerBlkStreamArchive.Infof("Retrieving block [%d] from local", blockNum)
+	block, err := store.fileMgr.retrieveBlockByNumber(blockNum)
+	if err != nil {
+		loggerBlkStreamArchive.Infof("Retrieving block [%d] from archiver", blockNum)
+		return blockarchive.GossipService.RetrieveBlockFromArchiver(blockNum, gossipcommon.ChannelID(store.id))
+	}
+	return block, err
 }
 
 // RetrieveTxByID returns a transaction for given transaction id
 func (store *fsBlockStore) RetrieveTxByID(txID string) (*common.Envelope, error) {
+	loggerBlkStreamArchive.Info("To be supported")
 	return store.fileMgr.retrieveTransactionByID(txID)
 }
 
 // RetrieveTxByID returns a transaction for given transaction id
 func (store *fsBlockStore) RetrieveTxByBlockNumTranNum(blockNum uint64, tranNum uint64) (*common.Envelope, error) {
+	loggerBlkStreamArchive.Info("To be supported")
 	return store.fileMgr.retrieveTransactionByBlockNumTranNum(blockNum, tranNum)
 }
 
 func (store *fsBlockStore) RetrieveBlockByTxID(txID string) (*common.Block, error) {
+	loggerBlkStreamArchive.Info("To be supported")
 	return store.fileMgr.retrieveBlockByTxID(txID)
 }
 
 func (store *fsBlockStore) RetrieveTxValidationCodeByTxID(txID string) (peer.TxValidationCode, error) {
+	loggerBlkStreamArchive.Info("To be supported")
 	return store.fileMgr.retrieveTxValidationCodeByTxID(txID)
 }
 

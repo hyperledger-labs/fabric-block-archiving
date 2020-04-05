@@ -39,8 +39,8 @@ var errIndexEmpty = errors.New("NoBlockIndexed")
 
 type index interface {
 	getLastBlockIndexed() (uint64, error)
-	getLastArchivedBlockIndexed() (uint64, error)
-	setLastArchivedBlockIndexed(archivedBlockNum uint64) error
+	getLastArchivedBlockIndexed() (uint64, error)              // only for archiver
+	setLastArchivedBlockIndexed(archivedBlockNum uint64) error // only for archiver
 	getLastArchivedBlockfileIndexed() (uint64, error)
 	setLastArchivedBlockfileIndexed(archivedBlockfileNum uint64) error
 	getEndBlockOfBlockfileIndexed(blockfileSuffix uint64) (uint64, error)

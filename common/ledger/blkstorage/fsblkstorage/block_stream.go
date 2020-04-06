@@ -13,9 +13,7 @@ import (
 	"os"
 
 	"github.com/golang/protobuf/proto"
-	"github.com/hyperledger/fabric/core/ledger"
 	"github.com/pkg/errors"
-	"golang.org/x/crypto/ssh"
 )
 
 // ErrUnexpectedEndOfBlockfile error used to indicate an unexpected end of a file segment
@@ -27,17 +25,9 @@ var ErrUnexpectedEndOfBlockfile = errors.New("unexpected end of blockfile")
 // It starts from the given offset and can traverse till the end of the file
 type blockfileStream struct {
 	fileNum       int
-	file          blockFile
+	file          *os.File
 	reader        *bufio.Reader
 	currentOffset int64
-	sshClient     *ssh.Client
-}
-
-type blockFile interface {
-	Stat() (os.FileInfo, error)
-	Close() error
-	Seek(offset int64, whence int) (int64, error)
-	io.Reader
 }
 
 // blockStream reads blocks sequentially from multiple files.
@@ -48,7 +38,6 @@ type blockStream struct {
 	currentFileNum    int
 	endFileNum        int
 	currentFileStream *blockfileStream
-	archiveConfig     *ledger.ArchiveConfig
 }
 
 // blockPlacementInfo captures the information related
@@ -62,17 +51,14 @@ type blockPlacementInfo struct {
 ///////////////////////////////////
 // blockfileStream functions
 ////////////////////////////////////
-func newBlockfileStream(rootDir string, fileNum int, startOffset int64, archiveConfig *ledger.ArchiveConfig) (*blockfileStream, error) {
+func newBlockfileStream(rootDir string, fileNum int, startOffset int64) (*blockfileStream, error) {
 	filePath := deriveBlockfilePath(rootDir, fileNum)
 	logger.Debugf("newBlockfileStream(): filePath=[%s], startOffset=[%d]", filePath, startOffset)
-	var file blockFile
+	var file *os.File
 	var err error
-	var sshClient *ssh.Client
 	if file, err = os.OpenFile(filePath, os.O_RDONLY, 0600); err != nil {
-		logger.Error(err)
 		return nil, errors.Wrapf(err, "error opening block file %s", filePath)
 	}
-
 	var newPosition int64
 	if newPosition, err = file.Seek(startOffset, 0); err != nil {
 		return nil, errors.Wrapf(err, "error seeking block file [%s] to startOffset [%d]", filePath, startOffset)
@@ -81,7 +67,7 @@ func newBlockfileStream(rootDir string, fileNum int, startOffset int64, archiveC
 		panic(fmt.Sprintf("Could not seek block file [%s] to startOffset [%d]. New position = [%d]",
 			filePath, startOffset, newPosition))
 	}
-	s := &blockfileStream{fileNum, file, bufio.NewReader(file), startOffset, sshClient}
+	s := &blockfileStream{fileNum, file, bufio.NewReader(file), startOffset}
 	return s, nil
 }
 
@@ -153,22 +139,18 @@ func (s *blockfileStream) nextBlockBytesAndPlacementInfo() ([]byte, *blockPlacem
 }
 
 func (s *blockfileStream) close() error {
-	err := errors.WithStack(s.file.Close())
-	if err == nil && s.sshClient != nil {
-		err = errors.WithStack(s.sshClient.Close())
-	}
-	return err
+	return errors.WithStack(s.file.Close())
 }
 
 ///////////////////////////////////
 // blockStream functions
 ////////////////////////////////////
-func newBlockStream(rootDir string, startFileNum int, startOffset int64, endFileNum int, archiveConfig *ledger.ArchiveConfig) (*blockStream, error) {
-	startFileStream, err := newBlockfileStream(rootDir, startFileNum, startOffset, archiveConfig)
+func newBlockStream(rootDir string, startFileNum int, startOffset int64, endFileNum int) (*blockStream, error) {
+	startFileStream, err := newBlockfileStream(rootDir, startFileNum, startOffset)
 	if err != nil {
 		return nil, err
 	}
-	return &blockStream{rootDir, startFileNum, endFileNum, startFileStream, archiveConfig}, nil
+	return &blockStream{rootDir, startFileNum, endFileNum, startFileStream}, nil
 }
 
 func (s *blockStream) moveToNextBlockfileStream() error {
@@ -177,7 +159,7 @@ func (s *blockStream) moveToNextBlockfileStream() error {
 		return err
 	}
 	s.currentFileNum++
-	if s.currentFileStream, err = newBlockfileStream(s.rootDir, s.currentFileNum, 0, s.archiveConfig); err != nil {
+	if s.currentFileStream, err = newBlockfileStream(s.rootDir, s.currentFileNum, 0); err != nil {
 		return err
 	}
 	return nil

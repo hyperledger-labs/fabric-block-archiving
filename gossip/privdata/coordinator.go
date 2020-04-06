@@ -66,12 +66,6 @@ type Coordinator interface {
 	// Get recent block sequence number
 	LedgerHeight() (uint64, error)
 
-	// SetArchived triggers the following actions:
-	// - Delete N th data chunk(ex. blockfile) that is a data unit which puts together a certain amount of block
-	// - (Not implemented) Leave a persist record which indicate that N th data chunk has been archived
-	// This interface is used from gossip when receiving a message notifying that an archive has been done.
-	SetArchived(fileNum int, deleteTheFile bool) error
-
 	// Close coordinator, shuts down coordinator service
 	Close()
 }

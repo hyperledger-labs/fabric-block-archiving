@@ -44,7 +44,6 @@ type Config struct {
 	PrivateDataConfig *PrivateDataConfig
 	// HistoryDBConfig holds the configuration parameters for the transaction history database.
 	HistoryDBConfig *HistoryDBConfig
-	ArchiveConfig   *ArchiveConfig
 }
 
 // StateDBConfig is a structure used to configure the state parameters for the ledger.
@@ -73,13 +72,6 @@ type PrivateDataConfig struct {
 // HistoryDBConfig is a structure used to configure the transaction history database.
 type HistoryDBConfig struct {
 	Enabled bool
-}
-
-type ArchiveConfig struct {
-	BlockArchiverURL string
-	BlockArchiverDir string
-	ArchiverEach     int
-	ArchiverKeep     int
 }
 
 // PeerLedgerProvider provides handle to ledger instances
@@ -148,19 +140,8 @@ type PeerLedger interface {
 	//     missing info is recorded in the ledger (or)
 	// (3) the block is committed and does not contain any pvtData.
 	DoesPvtDataInfoExist(blockNum uint64) (bool, error)
-	// SetArchived triggers the following actions:
-	// - Delete N th data chunk(ex. blockfile) that is a data unit which puts together a certain amount of block
-	// - (Not implemented) Leave a persist record which indicate that N th data chunk has been archived
-	// This interface is used from gossip when receiving a message notifying that an archive has been done.
-	SetArchived(dataChunkNo int, deleteTheChunk bool) error
 
 	DumpBlockInfo(blockNum uint64) string
-}
-
-// ValidatedLedger represents the 'final ledger' after filtering out invalid transactions from PeerLedger.
-// Post-v1
-type ValidatedLedger interface {
-	commonledger.Ledger
 }
 
 // SimpleQueryExecutor encapsulates basic functions

@@ -40,8 +40,6 @@ type PeerLedgerSupport interface {
 
 	GetMissingPvtDataTracker() (ledger.MissingPvtDataTracker, error)
 
-	SetArchived(blockFileNo int, deleteTheFile bool) error
-
 	Close()
 }
 

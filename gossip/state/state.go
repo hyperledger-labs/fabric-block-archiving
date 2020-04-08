@@ -8,6 +8,7 @@ package state
 
 import (
 	"bytes"
+	"fmt"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -38,6 +39,8 @@ type GossipStateProvider interface {
 
 	// Stop terminates state transfer object
 	Stop()
+
+	RetrieveBlockFromArchiver(blockNum uint64) (*common.Block, error)
 }
 
 const (
@@ -530,6 +533,33 @@ func (s *GossipStateProviderImpl) handleStateResponse(msg protoext.ReceivedMessa
 	return max, nil
 }
 
+func (s *GossipStateProviderImpl) handleArchivedBlockResponse(msg protoext.ReceivedMessage) (*common.Block, error) {
+	// Send signal that response for given nonce has been received
+	response := msg.GetGossipMessage().GetStateResponse()
+	// Extract payloads, verify and push into buffer
+	if len(response.GetPayloads()) == 0 {
+		return nil, errors.New("Received archived block response without payload")
+	} else if len(response.GetPayloads()) > 1 {
+		return nil, errors.New("Received archived block responses more than one single block")
+	}
+
+	payload := response.GetPayloads()[0]
+	logger.Infof("Received payload with sequence number %d.", payload.SeqNum)
+	block, err := protoutil.UnmarshalBlock(payload.Data)
+	if err != nil {
+		logger.Warningf("Error unmarshaling payload to block for sequence number %d, due to %+v", payload.SeqNum, err)
+		return nil, err
+	}
+
+	if err := s.mediator.VerifyBlock(common2.ChannelID(s.chainID), payload.SeqNum, block); err != nil {
+		err = errors.WithStack(err)
+		logger.Warningf("Error verifying block with sequence number %d, due to %+v", payload.SeqNum, err)
+		return nil, err
+	}
+
+	return block, nil
+}
+
 // Stop function sends halting signal to all go routines
 func (s *GossipStateProviderImpl) Stop() {
 	// Make sure stop won't be executed twice
@@ -624,6 +654,7 @@ func (s *GossipStateProviderImpl) maxAvailableLedgerHeight() uint64 {
 			logger.Debug("Peer", p.PreferredEndpoint(), "doesn't have properties, skipping it")
 			continue
 		}
+		logger.Info("archive: ArchivedBlockHeight", p.Properties.ArchivedBlockHeight)
 		peerHeight := p.Properties.LedgerHeight
 		if max < peerHeight {
 			max = peerHeight
@@ -691,6 +722,63 @@ func (s *GossipStateProviderImpl) requestBlocksInRange(start uint64, end uint64)
 	}
 }
 
+// RetrieveBlockFromArchiver retrieves requested block from archiver
+func (s *GossipStateProviderImpl) RetrieveBlockFromArchiver(blockNum uint64) (*common.Block, error) {
+	logger.Infof("block: %d", blockNum)
+	atomic.StoreInt32(&s.stateTransferActive, 1)
+	defer atomic.StoreInt32(&s.stateTransferActive, 0)
+
+	gossipMsg := s.stateRequestMessage(blockNum, blockNum)
+
+	responseReceived := false
+	tryCounts := 0
+
+	var block *common.Block
+
+	for !responseReceived {
+		if tryCounts > s.config.StateMaxRetries {
+			logger.Warningf("Wasn't  able to get blocks %d, after %d retries",
+				blockNum, tryCounts)
+			return nil, errors.New(fmt.Sprint("Wasn't  able to get blocks %d, after %d retries", blockNum, tryCounts))
+		}
+		// Select peers to ask for blocks
+		peer, err := s.selectArchiverPeer(blockNum)
+		if err != nil {
+			logger.Warningf("Cannot send state request for blocks %d, due to %+v",
+				blockNum, errors.WithStack(err))
+			return nil, errors.New(fmt.Sprint("Cannot send state request for blocks %d with %s", blockNum, err))
+		}
+
+		logger.Infof("State transfer, with peer %s, requesting blocks %d, "+
+			"for chainID %s", peer.Endpoint, blockNum, s.chainID)
+
+		s.mediator.Send(gossipMsg, peer)
+		tryCounts++
+
+		// Wait until timeout or response arrival
+		select {
+		case msg, stillOpen := <-s.stateResponseCh:
+			if !stillOpen {
+				return nil, errors.New("Already closed")
+			}
+			if msg.GetGossipMessage().Nonce !=
+				gossipMsg.Nonce {
+				continue
+			}
+			// Got corresponding response for state request, can continue
+			block, err = s.handleArchivedBlockResponse(msg)
+			if err != nil {
+				logger.Warningf("Wasn't able to process state response for "+
+					"blocks %d, due to %+v", blockNum, errors.WithStack(err))
+				continue
+			}
+			responseReceived = true
+		case <-time.After(s.config.StateResponseTimeout):
+		}
+	}
+	return block, nil
+}
+
 // stateRequestMessage generates state request message for given blocks in range [beginSeq...endSeq]
 func (s *GossipStateProviderImpl) stateRequestMessage(beginSeq uint64, endSeq uint64) *proto.GossipMessage {
 	return &proto.GossipMessage{
@@ -720,6 +808,20 @@ func (s *GossipStateProviderImpl) selectPeerToRequestFrom(height uint64) (*comm.
 	return peers[util.RandomInt(n)], nil
 }
 
+// selectArchiverPeer selects peer which has required blocks to ask missing blocks from
+func (s *GossipStateProviderImpl) selectArchiverPeer(blockNum uint64) (*comm.RemotePeer, error) {
+	// Filter peers which posses required range of missing blocks
+	peers := s.filterPeers(s.hasArchivedBlockHeight(blockNum))
+
+	n := len(peers)
+	if n == 0 {
+		return nil, errors.New("there are no peers to ask for missing blocks from")
+	}
+
+	// Select peer to ask for blocks
+	return peers[util.RandomInt(n)], nil
+}
+
 // filterPeers returns list of peers which aligns the predicate provided
 func (s *GossipStateProviderImpl) filterPeers(predicate func(peer discovery.NetworkMember) bool) []*comm.RemotePeer {
 	var peers []*comm.RemotePeer
@@ -739,6 +841,19 @@ func (s *GossipStateProviderImpl) hasRequiredHeight(height uint64) func(peer dis
 	return func(peer discovery.NetworkMember) bool {
 		if peer.Properties != nil {
 			return peer.Properties.LedgerHeight >= height
+		}
+		logger.Debug(peer.PreferredEndpoint(), "doesn't have properties")
+		return false
+	}
+}
+
+// hasArchivedBlockHeight returns predicate which is capable to filter archiver peers with archived
+// ledger height above than indicated by provided input parameter
+func (s *GossipStateProviderImpl) hasArchivedBlockHeight(height uint64) func(peer discovery.NetworkMember) bool {
+	return func(peer discovery.NetworkMember) bool {
+		if peer.Properties != nil {
+			logger.Infof("%s is archiver with archived blocks up to %d", peer.PreferredEndpoint(), peer.Properties.ArchivedBlockHeight)
+			return peer.Properties.ArchivedBlockHeight >= height
 		}
 		logger.Debug(peer.PreferredEndpoint(), "doesn't have properties")
 		return false

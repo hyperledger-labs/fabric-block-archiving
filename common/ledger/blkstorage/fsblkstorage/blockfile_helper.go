@@ -14,14 +14,13 @@ import (
 
 	"github.com/davecgh/go-spew/spew"
 	"github.com/hyperledger/fabric-protos-go/common"
-	"github.com/hyperledger/fabric/core/ledger"
 	"github.com/pkg/errors"
 )
 
 // constructCheckpointInfoFromBlockFiles scans the last blockfile (if any) and construct the checkpoint info
 // if the last file contains no block or only a partially written block (potentially because of a crash while writing block to the file),
 // this scans the second last file (if any)
-func constructCheckpointInfoFromBlockFiles(rootDir string, archiveConfig *ledger.ArchiveConfig) (*checkpointInfo, error) {
+func constructCheckpointInfoFromBlockFiles(rootDir string) (*checkpointInfo, error) {
 	logger.Debugf("Retrieving checkpoint info from block files")
 	var lastFileNum int
 	var numBlocksInFile int
@@ -45,7 +44,7 @@ func constructCheckpointInfoFromBlockFiles(rootDir string, archiveConfig *ledger
 
 	fileInfo := getFileInfoOrPanic(rootDir, lastFileNum)
 	logger.Debugf("Last Block file info: FileName=[%s], FileSize=[%d]", fileInfo.Name(), fileInfo.Size())
-	if lastBlockBytes, endOffsetLastBlock, numBlocksInFile, err = scanForLastCompleteBlock(rootDir, lastFileNum, 0, archiveConfig); err != nil {
+	if lastBlockBytes, endOffsetLastBlock, numBlocksInFile, err = scanForLastCompleteBlock(rootDir, lastFileNum, 0); err != nil {
 		logger.Errorf("Error scanning last file [num=%d]: %s", lastFileNum, err)
 		return nil, err
 	}
@@ -54,7 +53,7 @@ func constructCheckpointInfoFromBlockFiles(rootDir string, archiveConfig *ledger
 		secondLastFileNum := lastFileNum - 1
 		fileInfo := getFileInfoOrPanic(rootDir, secondLastFileNum)
 		logger.Debugf("Second last Block file info: FileName=[%s], FileSize=[%d]", fileInfo.Name(), fileInfo.Size())
-		if lastBlockBytes, _, _, err = scanForLastCompleteBlock(rootDir, secondLastFileNum, 0, archiveConfig); err != nil {
+		if lastBlockBytes, _, _, err = scanForLastCompleteBlock(rootDir, secondLastFileNum, 0); err != nil {
 			logger.Errorf("Error scanning second last file [num=%d]: %s", secondLastFileNum, err)
 			return nil, err
 		}
@@ -81,8 +80,8 @@ func constructCheckpointInfoFromBlockFiles(rootDir string, archiveConfig *ledger
 // binarySearchFileNumForBlock locates the file number that contains the given block number.
 // This function assumes that the caller invokes this function with a block number that has been commited
 // For any uncommitted block, this function returns the last file present
-func binarySearchFileNumForBlock(rootDir string, blockNum uint64, archiveConfig *ledger.ArchiveConfig) (int, error) {
-	cpInfo, err := constructCheckpointInfoFromBlockFiles(rootDir, archiveConfig)
+func binarySearchFileNumForBlock(rootDir string, blockNum uint64) (int, error) {
+	cpInfo, err := constructCheckpointInfoFromBlockFiles(rootDir)
 	if err != nil {
 		return -1, err
 	}
@@ -92,7 +91,7 @@ func binarySearchFileNumForBlock(rootDir string, blockNum uint64, archiveConfig 
 
 	for endFile != beginFile {
 		searchFile := beginFile + (endFile-beginFile)/2 + 1
-		n, err := retriveFirstBlockNumFromFile(rootDir, searchFile, archiveConfig)
+		n, err := retriveFirstBlockNumFromFile(rootDir, searchFile)
 		if err != nil {
 			return -1, err
 		}
@@ -108,8 +107,8 @@ func binarySearchFileNumForBlock(rootDir string, blockNum uint64, archiveConfig 
 	return beginFile, nil
 }
 
-func retriveFirstBlockNumFromFile(rootDir string, fileNum int, archiveConfig *ledger.ArchiveConfig) (uint64, error) {
-	s, err := newBlockfileStream(rootDir, fileNum, 0, archiveConfig)
+func retriveFirstBlockNumFromFile(rootDir string, fileNum int) (uint64, error) {
+	s, err := newBlockfileStream(rootDir, fileNum, 0)
 	if err != nil {
 		return 0, err
 	}

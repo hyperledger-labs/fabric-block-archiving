@@ -42,23 +42,6 @@ func ledgerConfig() *ledger.Config {
 		purgeInterval = viper.GetInt("ledger.pvtdataStore.purgeInterval")
 	}
 
-	blockArchiverURL := "ledger-bank:222"
-	if viper.IsSet("ledger.blockArchiver.url") {
-		blockArchiverURL = viper.GetString("ledger.blockArchiver.url")
-	}
-	blockArchiverDir := "/tmp"
-	if viper.IsSet("ledger.blockArchiver.dir") {
-		blockArchiverDir = viper.GetString("ledger.blockArchiver.dir")
-	}
-	archiverEach := 30
-	if viper.IsSet("peer.archiver.each") {
-		archiverEach = viper.GetInt("peer.archiver.each")
-	}
-	archiverKeep := 10
-	if viper.IsSet("peer.archiver.keep") {
-		archiverKeep = viper.GetInt("peer.archiver.keep")
-	}
-
 	rootFSPath := filepath.Join(coreconfig.GetPath("peer.fileSystemPath"), "ledgersData")
 	conf := &ledger.Config{
 		RootFSPath: rootFSPath,
@@ -73,12 +56,6 @@ func ledgerConfig() *ledger.Config {
 		},
 		HistoryDBConfig: &ledger.HistoryDBConfig{
 			Enabled: viper.GetBool("ledger.history.enableHistoryDatabase"),
-		},
-		ArchiveConfig: &ledger.ArchiveConfig{
-			BlockArchiverURL: blockArchiverURL,
-			BlockArchiverDir: blockArchiverDir,
-			ArchiverEach:     archiverEach,
-			ArchiverKeep:     archiverKeep,
 		},
 	}
 

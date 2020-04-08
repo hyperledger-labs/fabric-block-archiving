@@ -18,6 +18,7 @@ import (
 	"os/signal"
 	"path/filepath"
 	"sync"
+	"syscall"
 	"time"
 
 	docker "github.com/fsouza/go-dockerclient"
@@ -104,6 +105,7 @@ var (
 	verifyChannel string
 	dumpMetadata  bool
 	pInstance     *peer.Peer
+	txId          string
 )
 
 const (
@@ -114,30 +116,75 @@ const (
 
 var chaincodeDevMode bool
 
-func startCmd() *cobra.Command {
+func ledgerCmd() *cobra.Command {
 	// Set the flags on the node start command.
-	flags := nodeStartCmd.Flags()
+	flags := verifyLedgerCmd.Flags()
 	flags.StringVarP(&verifyChannel, "channelID", "c", "", "In case of a newChain command, the channel ID to create. It must be all lower case, less than 250 characters long and match the regular expression: [a-z][a-z0-9.-]*")
 	flags.BoolVarP(&dumpMetadata, "dumpMeta", "d", false, "Dump metadata in each block")
 
-	return nodeStartCmd
+	return verifyLedgerCmd
 }
 
-var nodeStartCmd = &cobra.Command{
-	Use:   "start",
-	Short: "Starts the node.",
-	Long:  `Starts a node that interacts with the network.`,
+func txCmd() *cobra.Command {
+	// Set the flags on the node start command.
+	flags := verifyTxCmd.Flags()
+	flags.StringVarP(&verifyChannel, "channelID", "c", "", "In case of a newChain command, the channel ID to create. It must be all lower case, less than 250 characters long and match the regular expression: [a-z][a-z0-9.-]*")
+	flags.StringVarP(&txId, "txid", "t", "", "Transaction ID")
+
+	return verifyTxCmd
+}
+
+var verifyTxCmd = &cobra.Command{
+	Use:   "tx",
+	Short: "Verify transaction data",
+	Long:  `Verify transaction data`,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		if len(verifyChannel) == 0 {
 			return fmt.Errorf("Need to specify channel ID")
 		}
 		// Parsing of the command line is done so silence cmd usage
 		cmd.SilenceUsage = true
-		serve(args)
-		if dumpMetadata {
-			DumpMeta(verifyChannel)
-		} else {
-			Verify(verifyChannel)
+		waitStartPeer := make(chan bool)
+		go func(args []string, waitStartCh chan<- bool) {
+			serve(args, waitStartCh)
+		}(args, waitStartPeer)
+
+		if <-waitStartPeer {
+			if waitForStateInfo(pInstance, verifyChannel) {
+				GetTx(verifyChannel, txId)
+			} else {
+				logger.Info("Not found any peers in the channel")
+			}
+		}
+		return nil
+	},
+}
+
+var verifyLedgerCmd = &cobra.Command{
+	Use:   "ledger",
+	Short: "Verify block data ",
+	Long:  `Verify block data consistency across the ledger.`,
+	RunE: func(cmd *cobra.Command, args []string) error {
+		if len(verifyChannel) == 0 {
+			return fmt.Errorf("Need to specify channel ID")
+		}
+		// Parsing of the command line is done so silence cmd usage
+		cmd.SilenceUsage = true
+		waitStartPeer := make(chan bool)
+		go func(args []string, waitStartCh chan<- bool) {
+			serve(args, waitStartCh)
+		}(args, waitStartPeer)
+
+		if <-waitStartPeer {
+			if dumpMetadata {
+				DumpMeta(verifyChannel)
+			} else {
+				if waitForStateInfo(pInstance, verifyChannel) {
+					Verify(verifyChannel)
+				} else {
+					logger.Info("Not found any peers in the channel")
+				}
+			}
 		}
 		return nil
 	},
@@ -193,7 +240,7 @@ func (c custodianLauncherAdapter) Stop(ccid string) error {
 	return c.launcher.Stop(ccid)
 }
 
-func serve(args []string) error {
+func serve(args []string, waitCh chan<- bool) error {
 	// currently the peer only works with the standard MSP
 	// because in certain scenarios the MSP has to make sure
 	// that from a single credential you only have a single 'identity'.
@@ -693,7 +740,7 @@ func serve(args []string) error {
 	pb.RegisterChaincodeSupportServer(ccSrv.Server(), ccSupSrv)
 
 	// start the chaincode specific gRPC listening service
-	// go ccSrv.Start()
+	go ccSrv.Start()
 
 	// initialize archiving parameters
 	archiver.InitBlockArchiver(peerInstance.GossipService)
@@ -816,7 +863,7 @@ func serve(args []string) error {
 
 	// Start the grpc server. Done in a goroutine so we can deploy the
 	// genesis block if needed.
-	// serve := make(chan error)
+	serve := make(chan error)
 
 	// Start profiling http endpoint if enabled
 	if profileEnabled {
@@ -828,10 +875,10 @@ func serve(args []string) error {
 		}()
 	}
 
-	// go handleSignals(addPlatformSignals(map[os.Signal]func(){
-	// 	syscall.SIGINT:  func() { serve <- nil },
-	// 	syscall.SIGTERM: func() { serve <- nil },
-	// }))
+	go handleSignals(addPlatformSignals(map[os.Signal]func(){
+		syscall.SIGINT:  func() { serve <- nil },
+		syscall.SIGTERM: func() { serve <- nil },
+	}))
 
 	logger.Infof("Started peer with ID=[%s], network ID=[%s], address=[%s]", coreConfig.PeerID, coreConfig.NetworkID, coreConfig.PeerAddress)
 
@@ -866,18 +913,19 @@ func serve(args []string) error {
 	// Register the Endorser server
 	pb.RegisterEndorserServer(peerServer.Server(), auth)
 
-	// go func() {
-	// 	var grpcErr error
-	// 	if grpcErr = peerServer.Start(); grpcErr != nil {
-	// 		grpcErr = fmt.Errorf("grpc server exited with error: %s", grpcErr)
-	// 	}
-	// 	serve <- grpcErr
-	// }()
+	go func() {
+		var grpcErr error
+		if grpcErr = peerServer.Start(); grpcErr != nil {
+			grpcErr = fmt.Errorf("grpc server exited with error: %s", grpcErr)
+		}
+		serve <- grpcErr
+	}()
 
-	// // Block until grpc server exits
-	// return <-serve
 	pInstance = peerInstance
-	return nil
+	waitCh <- true
+
+	// Block until grpc server exits
+	return <-serve
 }
 
 func handleSignals(handlers map[os.Signal]func()) {
@@ -1467,4 +1515,38 @@ func DumpMeta(channelID string) {
 		loggerResult.Info(buff.String())
 		loggerResult.Info(dumpLedger.DumpBlockInfo(blockIndex))
 	}
+}
+
+func GetTx(channelID string, txid string) {
+	ledger := pInstance.GetLedger(channelID)
+	txdata, err := ledger.GetTransactionByID(txid)
+	if err != nil {
+		logger.Error("Failed to get txdata", err)
+	} else {
+		logger.Info("txdata:", txdata.String)
+	}
+}
+
+func waitForStateInfo(pInstance *peer.Peer, channel string) bool {
+	logger.Infof("channel:%s", channel)
+	wait := make(chan bool)
+	go func(waitCh chan<- bool, channelName string) {
+		retry := 50
+		var interval time.Duration = 2
+		for retry > 0 {
+			peers := pInstance.GossipService.PeersOfChannel(gossipcommon.ChannelID(channel))
+			if len(peers) > 0 {
+				logger.Infof("Found peers in channel:%s", channel)
+				waitCh <- true
+				return
+			}
+			logger.Infof("Not found peers in channel:%s yet", channel)
+			time.Sleep(interval * time.Second)
+			retry--
+		}
+		logger.Infof("Failed to find peers in channel:%s", channel)
+		waitCh <- false
+	}(wait, channel)
+
+	return <-wait
 }

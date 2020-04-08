@@ -19,6 +19,9 @@ package fsblkstorage
 import (
 	"sync"
 
+	"github.com/hyperledger/fabric/common/ledger/blockarchive"
+	"github.com/hyperledger/fabric/gossip/common"
+
 	"github.com/hyperledger/fabric/common/ledger"
 )
 
@@ -32,10 +35,18 @@ type blocksItr struct {
 	closeMarkerLock      *sync.Mutex
 }
 
-func newBlockItr(mgr *blockfileMgr, startBlockNum uint64) *blocksItr {
+func newBlockItr(mgr *blockfileMgr, startBlockNum uint64) ledger.ResultsIterator {
 	mgr.cpInfoCond.L.Lock()
 	defer mgr.cpInfoCond.L.Unlock()
-	return &blocksItr{mgr, mgr.cpInfo.lastBlockNumber, startBlockNum, nil, false, &sync.Mutex{}}
+
+	archivedBlockHeight := blockarchive.GossipService.ReadArchivedBlockHeight(common.ChannelID(mgr.chainID))
+	if startBlockNum <= archivedBlockHeight {
+		logger.Infof("Referring archived block: block[%d]", startBlockNum)
+		return &blocksArchivedItr{mgr, archivedBlockHeight, startBlockNum, false, &sync.Mutex{}}
+	} else {
+		logger.Infof("Referring local block: block[%d]", startBlockNum)
+		return &blocksItr{mgr, mgr.cpInfo.lastBlockNumber, startBlockNum, nil, false, &sync.Mutex{}}
+	}
 }
 
 func (itr *blocksItr) waitForBlock(blockNum uint64) uint64 {
@@ -56,7 +67,7 @@ func (itr *blocksItr) initStream() error {
 	if lp, err = itr.mgr.index.getBlockLocByBlockNum(itr.blockNumToRetrieve); err != nil {
 		return err
 	}
-	if itr.stream, err = newBlockStream(itr.mgr.rootDir, lp.fileSuffixNum, int64(lp.offset), -1, itr.mgr.conf.archiveConfig); err != nil {
+	if itr.stream, err = newBlockStream(itr.mgr.rootDir, lp.fileSuffixNum, int64(lp.offset), -1); err != nil {
 		return err
 	}
 	return nil

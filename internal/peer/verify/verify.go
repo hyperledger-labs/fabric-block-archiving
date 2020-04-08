@@ -23,7 +23,8 @@ var loggerResult = flogging.MustGetLogger("verifyResult")
 
 // Cmd returns the cobra command for Node
 func Cmd() *cobra.Command {
-	verifyCmd.AddCommand(startCmd())
+	verifyCmd.AddCommand(ledgerCmd())
+	verifyCmd.AddCommand(txCmd())
 	// verifyCmd.AddCommand(resetCmd())
 	// verifyCmd.AddCommand(rollbackCmd())
 	// verifyCmd.AddCommand(pauseCmd())

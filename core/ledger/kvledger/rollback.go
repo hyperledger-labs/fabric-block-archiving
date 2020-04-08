@@ -8,13 +8,12 @@ package kvledger
 
 import (
 	"github.com/hyperledger/fabric/common/ledger/util/leveldbhelper"
-	"github.com/hyperledger/fabric/core/ledger"
 	"github.com/hyperledger/fabric/core/ledger/ledgerstorage"
 	"github.com/pkg/errors"
 )
 
 // RollbackKVLedger rollbacks a ledger to a specified block number
-func RollbackKVLedger(rootFSPath, ledgerID string, blockNum uint64, archiveConfig *ledger.ArchiveConfig) error {
+func RollbackKVLedger(rootFSPath, ledgerID string, blockNum uint64) error {
 	fileLockPath := fileLockPath(rootFSPath)
 	fileLock := leveldbhelper.NewFileLock(fileLockPath)
 	if err := fileLock.Lock(); err != nil {
@@ -24,7 +23,7 @@ func RollbackKVLedger(rootFSPath, ledgerID string, blockNum uint64, archiveConfi
 	defer fileLock.Unlock()
 
 	blockstorePath := BlockStorePath(rootFSPath)
-	if err := ledgerstorage.ValidateRollbackParams(blockstorePath, ledgerID, blockNum, archiveConfig); err != nil {
+	if err := ledgerstorage.ValidateRollbackParams(blockstorePath, ledgerID, blockNum); err != nil {
 		return err
 	}
 
@@ -34,7 +33,7 @@ func RollbackKVLedger(rootFSPath, ledgerID string, blockNum uint64, archiveConfi
 	}
 
 	logger.Info("Rolling back ledger store")
-	if err := ledgerstorage.Rollback(blockstorePath, ledgerID, blockNum, archiveConfig); err != nil {
+	if err := ledgerstorage.Rollback(blockstorePath, ledgerID, blockNum); err != nil {
 		return err
 	}
 	logger.Infof("The channel [%s] has been successfully rolled back to the block number [%d]", ledgerID, blockNum)

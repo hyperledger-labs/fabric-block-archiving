@@ -148,7 +148,6 @@ func (p *Provider) initLedgerStorageProvider() error {
 		BlockStorePath(p.initializer.Config.RootFSPath),
 		privateData,
 		p.initializer.MetricsProvider,
-		p.initializer.Config.ArchiveConfig,
 	)
 	if err != nil {
 		return err

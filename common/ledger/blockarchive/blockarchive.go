@@ -19,13 +19,6 @@ var IsClient bool
 // where blockfiles of all channels are stored.
 var BlockStorePath string
 
-// BlockArchiverDir is the absolute path to the root directory
-// where archived blockfiles of all channels are stored on the repository.
-var BlockArchiverDir string
-
-// BlockArchiverURL is URL of the repository
-var BlockArchiverURL string
-
 // NumBlockfileEachArchiving is the number of data chunks archived
 // on each archiving opportunity at once
 var NumBlockfileEachArchiving int

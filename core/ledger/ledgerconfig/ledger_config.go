@@ -45,20 +45,12 @@ var confCollElgProcDbBatchesInterval = &conf{"ledger.pvtdataStore.collElgProcDbB
 // The maximum size of each data chunk which puts together a certain amount of blocks
 const confMaxBlockfileSize = "ledger.maxBlockfileSize"
 
-// URL of the block archiving repository
-const confBlockArchiverURL = "ledger.blockArchiver.url"
-
-// PATH where archived data chunks are stored on the block archiving repository
-const confBlockArchiverDir = "ledger.blockArchiver.dir"
-
 // The number of data chunks archived on each archiving opportunity at once
 const confArchiverEach = "peer.archiver.each"
 
 // The least number of data chunks which a peer node should keep on local file system
 const confArchiverKeep = "peer.archiver.keep"
 
-const defaultBlockArchiverURL = "ledger-bank:222"
-const defaultBlockArchiverDir = "/tmp"
 const defaultArchiverEach = 30
 const defaultArchiverKeep = 10
 
@@ -219,24 +211,6 @@ func GetWarmIndexesAfterNBlocks() int {
 type conf struct {
 	Name       string
 	DefaultVal int
-}
-
-//GetBlockArchiverURL exposes the BlockArchiverURL variable
-func GetBlockArchiverURL() string {
-	url := viper.GetString(confBlockArchiverURL)
-	if !viper.IsSet(confBlockArchiverURL) {
-		url = defaultBlockArchiverURL
-	}
-	return url
-}
-
-//GetBlockArchiverDir exposes the BlockArchiverDir variable
-func GetBlockArchiverDir() string {
-	dir := viper.GetString(confBlockArchiverDir)
-	if !viper.IsSet(confBlockArchiverDir) {
-		dir = defaultBlockArchiverDir
-	}
-	return dir
 }
 
 //GetArchivingParameters exposes parameters related to archiving/discarding

@@ -18,8 +18,6 @@ package fsblkstorage
 
 import (
 	"path/filepath"
-
-	"github.com/hyperledger/fabric/core/ledger"
 )
 
 const (
@@ -34,16 +32,15 @@ const (
 type Conf struct {
 	blockStorageDir  string
 	maxBlockfileSize int
-	archiveConfig    *ledger.ArchiveConfig
 }
 
 // NewConf constructs new `Conf`.
 // blockStorageDir is the top level folder under which `FsBlockStore` manages its data
-func NewConf(blockStorageDir string, maxBlockfileSize int, archiveConfig *ledger.ArchiveConfig) *Conf {
+func NewConf(blockStorageDir string, maxBlockfileSize int) *Conf {
 	if maxBlockfileSize <= 0 {
 		maxBlockfileSize = defaultMaxBlockfileSize
 	}
-	return &Conf{blockStorageDir, maxBlockfileSize, archiveConfig}
+	return &Conf{blockStorageDir, maxBlockfileSize}
 }
 
 func (conf *Conf) getIndexDir() string {

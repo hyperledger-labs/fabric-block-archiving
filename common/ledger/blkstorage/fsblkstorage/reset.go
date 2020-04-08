@@ -13,11 +13,10 @@ import (
 	"strconv"
 
 	"github.com/hyperledger/fabric/common/ledger/util"
-	"github.com/hyperledger/fabric/core/ledger"
 )
 
 // ResetBlockStore drops the block storage index and truncates the blocks files for all channels/ledgers to genesis blocks
-func ResetBlockStore(blockStorageDir string, archiveConfig *ledger.ArchiveConfig) error {
+func ResetBlockStore(blockStorageDir string) error {
 	if err := DeleteBlockStoreIndex(blockStorageDir); err != nil {
 		return err
 	}
@@ -42,10 +41,10 @@ func ResetBlockStore(blockStorageDir string, archiveConfig *ledger.ArchiveConfig
 	logger.Infof("Found ledgers - %s", ledgerIDs)
 	for _, ledgerID := range ledgerIDs {
 		ledgerDir := conf.getLedgerBlockDir(ledgerID)
-		if err := recordHeightIfGreaterThanPreviousRecording(ledgerDir, archiveConfig); err != nil {
+		if err := recordHeightIfGreaterThanPreviousRecording(ledgerDir); err != nil {
 			return err
 		}
-		if err := resetToGenesisBlk(ledgerDir, archiveConfig); err != nil {
+		if err := resetToGenesisBlk(ledgerDir); err != nil {
 			return err
 		}
 	}
@@ -60,7 +59,7 @@ func DeleteBlockStoreIndex(blockStorageDir string) error {
 	return os.RemoveAll(indexDir)
 }
 
-func resetToGenesisBlk(ledgerDir string, archiveConfig *ledger.ArchiveConfig) error {
+func resetToGenesisBlk(ledgerDir string) error {
 	logger.Infof("Resetting ledger [%s] to genesis block", ledgerDir)
 	lastFileNum, err := retrieveLastFileSuffix(ledgerDir)
 	logger.Infof("lastFileNum = [%d]", lastFileNum)
@@ -70,7 +69,7 @@ func resetToGenesisBlk(ledgerDir string, archiveConfig *ledger.ArchiveConfig) er
 	if lastFileNum < 0 {
 		return nil
 	}
-	zeroFilePath, genesisBlkEndOffset, err := retrieveGenesisBlkOffsetAndMakeACopy(ledgerDir, archiveConfig)
+	zeroFilePath, genesisBlkEndOffset, err := retrieveGenesisBlkOffsetAndMakeACopy(ledgerDir)
 	if err != nil {
 		return err
 	}
@@ -86,9 +85,9 @@ func resetToGenesisBlk(ledgerDir string, archiveConfig *ledger.ArchiveConfig) er
 	return os.Truncate(zeroFilePath, genesisBlkEndOffset)
 }
 
-func retrieveGenesisBlkOffsetAndMakeACopy(ledgerDir string, archiveConfig *ledger.ArchiveConfig) (string, int64, error) {
+func retrieveGenesisBlkOffsetAndMakeACopy(ledgerDir string) (string, int64, error) {
 	blockfilePath := deriveBlockfilePath(ledgerDir, 0)
-	blockfileStream, err := newBlockfileStream(ledgerDir, 0, 0, archiveConfig)
+	blockfileStream, err := newBlockfileStream(ledgerDir, 0, 0)
 	if err != nil {
 		return "", -1, err
 	}
@@ -140,9 +139,9 @@ const (
 // directory. This file contains human readable string for the current block height. This function
 // only overwrites this information if the current block height is higher than the one recorded in
 // the existing file (if present). This helps in achieving fail-safe behviour of reset utility
-func recordHeightIfGreaterThanPreviousRecording(ledgerDir string, archiveConfig *ledger.ArchiveConfig) error {
+func recordHeightIfGreaterThanPreviousRecording(ledgerDir string) error {
 	logger.Infof("Preparing to record current height for ledger at [%s]", ledgerDir)
-	checkpointInfo, err := constructCheckpointInfoFromBlockFiles(ledgerDir, archiveConfig)
+	checkpointInfo, err := constructCheckpointInfoFromBlockFiles(ledgerDir)
 	if err != nil {
 		return err
 	}

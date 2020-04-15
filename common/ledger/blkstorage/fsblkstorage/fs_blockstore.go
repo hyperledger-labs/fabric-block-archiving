@@ -25,6 +25,7 @@ import (
 	"github.com/hyperledger/fabric/common/ledger/blkstorage"
 	"github.com/hyperledger/fabric/common/ledger/blockarchive"
 	"github.com/hyperledger/fabric/common/ledger/util/leveldbhelper"
+	l "github.com/hyperledger/fabric/core/ledger"
 	gossipcommon "github.com/hyperledger/fabric/gossip/common"
 )
 
@@ -83,7 +84,7 @@ func (store *fsBlockStore) RetrieveBlockByHash(blockHash []byte) (*common.Block,
 func (store *fsBlockStore) RetrieveBlockByNumber(blockNum uint64) (*common.Block, error) {
 	loggerBlkStreamArchive.Infof("Retrieving block [%d] from local", blockNum)
 	block, err := store.fileMgr.retrieveBlockByNumber(blockNum)
-	if err != nil {
+	if err != nil && blockarchive.IsClient {
 		loggerBlkStreamArchive.Infof("Retrieving block [%d] from archiver", blockNum)
 		return blockarchive.GossipService.RetrieveBlockFromArchiver(blockNum, gossipcommon.ChannelID(store.id))
 	}
@@ -92,8 +93,18 @@ func (store *fsBlockStore) RetrieveBlockByNumber(blockNum uint64) (*common.Block
 
 // RetrieveTxByID returns a transaction for given transaction id
 func (store *fsBlockStore) RetrieveTxByID(txID string) (*common.Envelope, error) {
-	loggerBlkStreamArchive.Info("To be supported")
-	return store.fileMgr.retrieveTransactionByID(txID)
+	loggerBlkStreamArchive.Infof("Retrieving tx [%s] from local", txID)
+	envelope, err := store.fileMgr.retrieveTransactionByID(txID)
+	switch err.(type) {
+	case nil, l.NotFoundInIndexErr:
+		return envelope, err
+	default:
+		if blockarchive.IsClient {
+			loggerBlkStreamArchive.Infof("Retrieving tx [%s] from archiver: %+v", txID, err)
+			envelope, err = blockarchive.GossipService.RetrieveTxFromArchiver(txID, gossipcommon.ChannelID(store.id))
+		}
+		return envelope, err
+	}
 }
 
 // RetrieveTxByID returns a transaction for given transaction id

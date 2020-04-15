@@ -447,6 +447,14 @@ func (g *GossipService) RetrieveBlockFromArchiver(blockNum uint64, channelID com
 	return g.chains[string(channelID)].RetrieveBlockFromArchiver(blockNum)
 }
 
+// RetrieveTxFromArchiver retrieve archived tx from archiver
+func (g *GossipService) RetrieveTxFromArchiver(txID string, channelID common.ChannelID) (*gprotocommon.Envelope, error) {
+	logger.Infof("txID: %s   channel: %s", txID, string(channelID))
+	g.lock.RLock()
+	defer g.lock.RUnlock()
+	return g.chains[string(channelID)].RetrieveTxFromArchiver(txID)
+}
+
 // Stop stops the gossip component
 func (g *GossipService) Stop() {
 	g.lock.Lock()

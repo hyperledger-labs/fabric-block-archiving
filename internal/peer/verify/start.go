@@ -106,6 +106,7 @@ var (
 	dumpMetadata  bool
 	pInstance     *peer.Peer
 	txId          string
+	blockNum      uint64
 )
 
 const (
@@ -134,6 +135,15 @@ func txCmd() *cobra.Command {
 	return verifyTxCmd
 }
 
+func blockCmd() *cobra.Command {
+	// Set the flags on the node start command.
+	flags := verifyBlockCmd.Flags()
+	flags.StringVarP(&verifyChannel, "channelID", "c", "", "In case of a newChain command, the channel ID to create. It must be all lower case, less than 250 characters long and match the regular expression: [a-z][a-z0-9.-]*")
+	flags.Uint64VarP(&blockNum, "blocknum", "b", 0, "Block Number")
+
+	return verifyBlockCmd
+}
+
 var verifyTxCmd = &cobra.Command{
 	Use:   "tx",
 	Short: "Verify transaction data",
@@ -152,6 +162,32 @@ var verifyTxCmd = &cobra.Command{
 		if <-waitStartPeer {
 			if waitForStateInfo(pInstance, verifyChannel) {
 				GetTx(verifyChannel, txId)
+			} else {
+				logger.Info("Not found any peers in the channel")
+			}
+		}
+		return nil
+	},
+}
+
+var verifyBlockCmd = &cobra.Command{
+	Use:   "block",
+	Short: "Verify block data",
+	Long:  `Verify block data`,
+	RunE: func(cmd *cobra.Command, args []string) error {
+		if len(verifyChannel) == 0 {
+			return fmt.Errorf("Need to specify channel ID")
+		}
+		// Parsing of the command line is done so silence cmd usage
+		cmd.SilenceUsage = true
+		waitStartPeer := make(chan bool)
+		go func(args []string, waitStartCh chan<- bool) {
+			serve(args, waitStartCh)
+		}(args, waitStartPeer)
+
+		if <-waitStartPeer {
+			if waitForStateInfo(pInstance, verifyChannel) {
+				GetBlock(verifyChannel, blockNum)
 			} else {
 				logger.Info("Not found any peers in the channel")
 			}
@@ -1524,6 +1560,24 @@ func GetTx(channelID string, txid string) {
 		logger.Error("Failed to get txdata", err)
 	} else {
 		logger.Info("txdata:", txdata.String)
+	}
+}
+
+func GetBlock(channelID string, blockNum uint64) {
+	ledger := pInstance.GetLedger(channelID)
+	block, err := ledger.GetBlockByNumber(blockNum)
+	if err != nil {
+		logger.Error("Failed to get txdata", err)
+	} else {
+		logger.Infof("block:[%d]", blockNum)
+		for txIndex, envBytes := range block.Data.Data {
+			if env, err := protoutil.GetEnvelopeFromBlock(envBytes); err == nil {
+				if payload, err := protoutil.UnmarshalPayload(env.Payload); err == nil {
+					chdr, _ := protoutil.UnmarshalChannelHeader(payload.Header.ChannelHeader)
+					logger.Infof("\t[%d] txid: %s,  type: %s", txIndex, chdr.GetTxId(), common.HeaderType_name[chdr.GetType()])
+				}
+			}
+		}
 	}
 }
 

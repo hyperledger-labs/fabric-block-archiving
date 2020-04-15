@@ -7,6 +7,7 @@ SPDX-License-Identifier: Apache-2.0
 package privdata
 
 import (
+	"fmt"
 	"time"
 
 	"github.com/hyperledger/fabric-protos-go/common"
@@ -62,6 +63,9 @@ type Coordinator interface {
 	// transactions in the block related to these private data, to get the correct placement
 	// need to read TxPvtData.SeqInBlock field
 	GetPvtDataAndBlockByNum(seqNum uint64, peerAuth protoutil.SignedData) (*common.Block, util.PvtDataCollections, error)
+
+	// GetTransactionByID gets transaction by ID.
+	GetTransactionByID(txID string) (*common.Envelope, error)
 
 	// Get recent block sequence number
 	LedgerHeight() (uint64, error)
@@ -284,6 +288,16 @@ func (c *coordinator) GetPvtDataAndBlockByNum(seqNum uint64, peerAuthInfo protou
 	}
 
 	return blockAndPvtData.Block, seqs2Namespaces.asPrivateData(), nil
+}
+
+// GetTransactionByID gets transaction by txID
+func (c *coordinator) GetTransactionByID(txID string) (*common.Envelope, error) {
+	tx, err := c.Committer.GetTransactionByID(txID)
+	if err != nil {
+		logger.Errorf("Failed getting transaction data %s with %+v", txID, err)
+		return nil, errors.New(fmt.Sprint("Failed getting transaction data %s with %+v", txID, err))
+	}
+	return tx.TransactionEnvelope, nil
 }
 
 // getTxPvtdataInfoFromBlock parses the block transactions and returns the list of private data items in the block.

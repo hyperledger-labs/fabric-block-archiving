@@ -25,6 +25,7 @@ var loggerResult = flogging.MustGetLogger("verifyResult")
 func Cmd() *cobra.Command {
 	verifyCmd.AddCommand(ledgerCmd())
 	verifyCmd.AddCommand(txCmd())
+	verifyCmd.AddCommand(blockCmd())
 	// verifyCmd.AddCommand(resetCmd())
 	// verifyCmd.AddCommand(rollbackCmd())
 	// verifyCmd.AddCommand(pauseCmd())

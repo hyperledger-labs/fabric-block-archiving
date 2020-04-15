@@ -49,6 +49,11 @@ func IsRemoteStateMessage(m *gossip.GossipMessage) bool {
 	return m.GetStateRequest() != nil || m.GetStateResponse() != nil
 }
 
+// IsRemoteTxMessage returns whether this GossipMessage is related to tx synchronization
+func IsRemoteTxMessage(m *gossip.GossipMessage) bool {
+	return m.GetTxRequest() != nil || m.GetTxResponse() != nil
+}
+
 // GetPullMsgType returns the phase of the pull mechanism this GossipMessage belongs to
 // for example: Hello, Digest, etc.
 // If this isn't a pull message, PullMsgType_UNDEFINED is returned.
@@ -169,6 +174,13 @@ func IsTagLegal(m *gossip.GossipMessage) error {
 	}
 
 	if IsStateInfoMsg(m) || IsStateInfoPullRequestMsg(m) || IsStateInfoSnapshot(m) || IsRemoteStateMessage(m) {
+		if m.Tag != gossip.GossipMessage_CHAN_OR_ORG {
+			return fmt.Errorf("Tag should be %s", gossip.GossipMessage_Tag_name[int32(gossip.GossipMessage_CHAN_OR_ORG)])
+		}
+		return nil
+	}
+
+	if IsRemoteTxMessage(m) {
 		if m.Tag != gossip.GossipMessage_CHAN_OR_ORG {
 			return fmt.Errorf("Tag should be %s", gossip.GossipMessage_Tag_name[int32(gossip.GossipMessage_CHAN_OR_ORG)])
 		}

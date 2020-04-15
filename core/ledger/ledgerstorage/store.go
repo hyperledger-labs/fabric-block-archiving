@@ -20,7 +20,7 @@ import (
 	"github.com/hyperledger/fabric/core/ledger/pvtdatastorage"
 )
 
-const maxBlockFileSize = 64 * 1 * 1024
+const maxBlockFileSize = 16 * 1 * 1024
 
 var logger = flogging.MustGetLogger("ledgerstorage")
 

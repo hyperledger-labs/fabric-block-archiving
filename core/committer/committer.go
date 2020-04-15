@@ -18,6 +18,7 @@ package committer
 
 import (
 	"github.com/hyperledger/fabric-protos-go/common"
+	"github.com/hyperledger/fabric-protos-go/peer"
 	"github.com/hyperledger/fabric/core/ledger"
 )
 
@@ -36,6 +37,9 @@ type Committer interface {
 	// GetPvtDataAndBlockByNum retrieves block with private data with given
 	// sequence number
 	GetPvtDataAndBlockByNum(seqNum uint64) (*ledger.BlockAndPvtData, error)
+
+	// GetTransactionByID retrieves transaction data
+	GetTransactionByID(txID string) (*peer.ProcessedTransaction, error)
 
 	// GetPvtDataByNum returns a slice of the private data from the ledger
 	// for given block and based on the filter which indicates a map of

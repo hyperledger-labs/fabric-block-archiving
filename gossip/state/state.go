@@ -20,6 +20,7 @@ import (
 	"github.com/hyperledger/fabric-protos-go/peer"
 	"github.com/hyperledger/fabric-protos-go/transientstore"
 	vsccErrors "github.com/hyperledger/fabric/common/errors"
+	"github.com/hyperledger/fabric/core/ledger"
 	"github.com/hyperledger/fabric/gossip/api"
 	"github.com/hyperledger/fabric/gossip/comm"
 	common2 "github.com/hyperledger/fabric/gossip/common"
@@ -41,6 +42,7 @@ type GossipStateProvider interface {
 	Stop()
 
 	RetrieveBlockFromArchiver(blockNum uint64) (*common.Block, error)
+	RetrieveTxFromArchiver(txID string) (*common.Envelope, error)
 }
 
 const (
@@ -120,6 +122,9 @@ type ledgerResources interface {
 	// transactions in the block related to these private data, to get the correct placement
 	// need to read TxPvtData.SeqInBlock field
 	GetPvtDataAndBlockByNum(seqNum uint64, peerAuthInfo protoutil.SignedData) (*common.Block, util.PvtDataCollections, error)
+
+	// GetTransactionByID gets transaction by ID.
+	GetTransactionByID(txID string) (*common.Envelope, error)
 
 	// Get recent block sequence number
 	LedgerHeight() (uint64, error)
@@ -207,7 +212,8 @@ func NewGossipStateProvider(
 	remoteStateMsgFilter := func(message interface{}) bool {
 		receivedMsg := message.(protoext.ReceivedMessage)
 		msg := receivedMsg.GetGossipMessage()
-		if !(protoext.IsRemoteStateMessage(msg.GossipMessage) || msg.GetPrivateData() != nil) {
+		if !(protoext.IsRemoteStateMessage(msg.GossipMessage) || msg.GetPrivateData() != nil || protoext.IsRemoteTxMessage(msg.GossipMessage)) {
+			logger.Info("remoteStateMsgFilter === 2")
 			return false
 		}
 		// Ensure we deal only with messages that belong to this channel
@@ -321,6 +327,10 @@ func (s *GossipStateProviderImpl) receiveAndDispatchDirectMessages(ch <-chan pro
 				logger.Debug("Handling private data collection message")
 				// Handling private data replication message
 				s.privateDataMessage(msg)
+			} else if protoext.IsRemoteTxMessage(gm.GossipMessage) {
+				logger.Debug("Handling direct tx transfer message")
+				// Got state transfer request response
+				s.directMessage(msg)
 			}
 		}(msg)
 	}
@@ -407,6 +417,21 @@ func (s *GossipStateProviderImpl) directMessage(msg protoext.ReceivedMessage) {
 			// Send signal of state response message
 			s.stateResponseCh <- msg
 		}
+	} else if incoming.GetTxRequest() != nil {
+		logger.Info("Got archived TX request message from client")
+		if len(s.stateRequestCh) < s.config.StateChannelSize {
+			// Forward state request to the channel, if there are too
+			// many message of state request ignore to avoid flooding.
+			s.stateRequestCh <- msg
+		}
+	} else if incoming.GetTxResponse() != nil {
+		logger.Info("Got archived TX response message from archiver")
+		// If no state transfer procedure activate there is
+		// no reason to process the message
+		if atomic.LoadInt32(&s.stateTransferActive) == 1 {
+			// Send signal of state response message
+			s.stateResponseCh <- msg
+		}
 	}
 }
 
@@ -416,7 +441,11 @@ func (s *GossipStateProviderImpl) processStateRequests() {
 		if !stillOpen {
 			return
 		}
-		s.handleStateRequest(msg)
+		if msg.GetGossipMessage().GetStateRequest() != nil {
+			s.handleStateRequest(msg)
+		} else {
+			s.handleTxRequest(msg)
+		}
 	}
 }
 
@@ -500,6 +529,39 @@ func (s *GossipStateProviderImpl) handleStateRequest(msg protoext.ReceivedMessag
 	})
 }
 
+// handleStateRequest handles state request message, validate batch size, reads current leader state to
+// obtain required blocks, builds response message and send it back
+func (s *GossipStateProviderImpl) handleTxRequest(msg protoext.ReceivedMessage) {
+	if msg == nil {
+		return
+	}
+	request := msg.GetGossipMessage().GetTxRequest()
+	txID := request.GetTxId()
+
+	logger.Infof("Request of archived TX %s", txID)
+
+	txData, err := s.ledger.GetTransactionByID(txID)
+	if err != nil {
+		logger.Errorf("Cannot retrieve transaction %s, due to %+v", txID, err)
+		return
+	}
+
+	txByte, err := pb.Marshal(txData)
+	response := &proto.RemoteTxResponse{}
+	response.Envelope = &proto.Envelope{
+		Payload: txByte,
+	}
+
+	// Sending back response with missing blocks
+	msg.Respond(&proto.GossipMessage{
+		// Copy nonce field from the request, so it will be possible to match response
+		Nonce:   msg.GetGossipMessage().Nonce,
+		Tag:     proto.GossipMessage_CHAN_OR_ORG,
+		Channel: []byte(s.chainID),
+		Content: &proto.GossipMessage_TxResponse{TxResponse: response},
+	})
+}
+
 func (s *GossipStateProviderImpl) handleStateResponse(msg protoext.ReceivedMessage) (uint64, error) {
 	max := uint64(0)
 	// Send signal that response for given nonce has been received
@@ -558,6 +620,28 @@ func (s *GossipStateProviderImpl) handleArchivedBlockResponse(msg protoext.Recei
 	}
 
 	return block, nil
+}
+
+func (s *GossipStateProviderImpl) handleArchivedTxResponse(msg protoext.ReceivedMessage) (*common.Envelope, error) {
+
+	logger.Info("Response of archived TX")
+
+	// Send signal that response for given nonce has been received
+	response := msg.GetGossipMessage().GetTxResponse()
+	// Extract payloads, verify and push into buffer
+	if response.GetEnvelope() == nil {
+		logger.Warning("Received archived TX response without envelope")
+		return nil, ledger.NotFoundInIndexErr("")
+	}
+
+	envelope := response.GetEnvelope()
+	env, err := protoutil.UnmarshalEnvelope(envelope.Payload)
+	if err != nil {
+		logger.Warningf("Error unmarshaling payload to tx envelop, due to %+v", err)
+		return nil, err
+	}
+
+	return env, nil
 }
 
 // Stop function sends halting signal to all go routines
@@ -742,7 +826,7 @@ func (s *GossipStateProviderImpl) RetrieveBlockFromArchiver(blockNum uint64) (*c
 			return nil, errors.New(fmt.Sprint("Wasn't  able to get blocks %d, after %d retries", blockNum, tryCounts))
 		}
 		// Select peers to ask for blocks
-		peer, err := s.selectArchiverPeer(blockNum)
+		peer, err := s.selectArchiverPeer()
 		if err != nil {
 			logger.Warningf("Cannot send state request for blocks %d, due to %+v",
 				blockNum, errors.WithStack(err))
@@ -779,6 +863,70 @@ func (s *GossipStateProviderImpl) RetrieveBlockFromArchiver(blockNum uint64) (*c
 	return block, nil
 }
 
+// RetrieveBlockFromArchiver retrieves requested block from archiver
+func (s *GossipStateProviderImpl) RetrieveTxFromArchiver(txID string) (*common.Envelope, error) {
+	logger.Infof("txID: %s", txID)
+	atomic.StoreInt32(&s.stateTransferActive, 1)
+	defer atomic.StoreInt32(&s.stateTransferActive, 0)
+
+	gossipMsg := s.txRequestMessage(txID)
+
+	responseReceived := false
+	tryCounts := 0
+
+	var tx *common.Envelope
+	var err error
+	for !responseReceived {
+		if tryCounts > s.config.StateMaxRetries {
+			logger.Warningf("Wasn't  able to get tx %s, after %d retries",
+				txID, tryCounts)
+			return nil, errors.New(fmt.Sprint("Wasn't  able to get tx %s, after %d retries", txID, tryCounts))
+		}
+		// Select peers to ask for blocks
+		peer, err := s.selectArchiverPeer()
+		if err != nil {
+			logger.Warningf("Cannot send state request for tx %s, due to %+v",
+				txID, errors.WithStack(err))
+			return nil, ledger.NotFoundInIndexErr("")
+		}
+
+		logger.Infof("State transfer, with peer %s, requesting tx %s, "+
+			"for chainID %s", peer.Endpoint, txID, s.chainID)
+
+		s.mediator.Send(gossipMsg, peer)
+		tryCounts++
+
+		// Wait until timeout or response arrival
+		select {
+		case msg, stillOpen := <-s.stateResponseCh:
+			if !stillOpen {
+				return nil, errors.New("Already closed")
+			}
+			if msg.GetGossipMessage().GetTxResponse() == nil {
+				continue
+			}
+			if msg.GetGossipMessage().Nonce !=
+				gossipMsg.Nonce {
+				continue
+			}
+			// Got corresponding response for state request, can continue
+			tx, err = s.handleArchivedTxResponse(msg)
+			switch err.(type) {
+			case nil:
+				responseReceived = true
+			case ledger.NotFoundInIndexErr:
+				responseReceived = true
+			default:
+				logger.Warningf("Wasn't able to process tx response for "+
+					"tx %s, due to %+v", txID, errors.WithStack(err))
+				continue
+			}
+		case <-time.After(s.config.StateResponseTimeout):
+		}
+	}
+	return tx, err
+}
+
 // stateRequestMessage generates state request message for given blocks in range [beginSeq...endSeq]
 func (s *GossipStateProviderImpl) stateRequestMessage(beginSeq uint64, endSeq uint64) *proto.GossipMessage {
 	return &proto.GossipMessage{
@@ -789,6 +937,20 @@ func (s *GossipStateProviderImpl) stateRequestMessage(beginSeq uint64, endSeq ui
 			StateRequest: &proto.RemoteStateRequest{
 				StartSeqNum: beginSeq,
 				EndSeqNum:   endSeq,
+			},
+		},
+	}
+}
+
+// txRequestMessage generates state request message for given tx
+func (s *GossipStateProviderImpl) txRequestMessage(txID string) *proto.GossipMessage {
+	return &proto.GossipMessage{
+		Nonce:   util.RandomUInt64(),
+		Tag:     proto.GossipMessage_CHAN_OR_ORG,
+		Channel: []byte(s.chainID),
+		Content: &proto.GossipMessage_TxRequest{
+			TxRequest: &proto.RemoteTxRequest{
+				TxId: txID,
 			},
 		},
 	}
@@ -809,9 +971,9 @@ func (s *GossipStateProviderImpl) selectPeerToRequestFrom(height uint64) (*comm.
 }
 
 // selectArchiverPeer selects peer which has required blocks to ask missing blocks from
-func (s *GossipStateProviderImpl) selectArchiverPeer(blockNum uint64) (*comm.RemotePeer, error) {
+func (s *GossipStateProviderImpl) selectArchiverPeer() (*comm.RemotePeer, error) {
 	// Filter peers which posses required range of missing blocks
-	peers := s.filterPeers(s.hasArchivedBlockHeight(blockNum))
+	peers := s.filterPeers(s.hasArchivedBlockHeight())
 
 	n := len(peers)
 	if n == 0 {
@@ -849,11 +1011,11 @@ func (s *GossipStateProviderImpl) hasRequiredHeight(height uint64) func(peer dis
 
 // hasArchivedBlockHeight returns predicate which is capable to filter archiver peers with archived
 // ledger height above than indicated by provided input parameter
-func (s *GossipStateProviderImpl) hasArchivedBlockHeight(height uint64) func(peer discovery.NetworkMember) bool {
+func (s *GossipStateProviderImpl) hasArchivedBlockHeight() func(peer discovery.NetworkMember) bool {
 	return func(peer discovery.NetworkMember) bool {
 		if peer.Properties != nil {
 			logger.Infof("%s is archiver with archived blocks up to %d", peer.PreferredEndpoint(), peer.Properties.ArchivedBlockHeight)
-			return peer.Properties.ArchivedBlockHeight >= height
+			return peer.Properties.ArchivedBlockHeight > 0
 		}
 		logger.Debug(peer.PreferredEndpoint(), "doesn't have properties")
 		return false

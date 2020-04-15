@@ -8,6 +8,7 @@ package committer
 
 import (
 	"github.com/hyperledger/fabric-protos-go/common"
+	"github.com/hyperledger/fabric-protos-go/peer"
 	"github.com/hyperledger/fabric/common/flogging"
 	"github.com/hyperledger/fabric/core/ledger"
 )
@@ -23,6 +24,8 @@ var logger = flogging.MustGetLogger("committer")
 // required to implement LedgerCommitter
 type PeerLedgerSupport interface {
 	GetPvtDataAndBlockByNum(blockNum uint64, filter ledger.PvtNsCollFilter) (*ledger.BlockAndPvtData, error)
+
+	GetTransactionByID(txID string) (*peer.ProcessedTransaction, error)
 
 	GetPvtDataByNum(blockNum uint64, filter ledger.PvtNsCollFilter) ([]*ledger.TxPvtData, error)
 
@@ -69,6 +72,11 @@ func (lc *LedgerCommitter) CommitLegacy(blockAndPvtData *ledger.BlockAndPvtData,
 // GetPvtDataAndBlockByNum retrieves private data and block for given sequence number
 func (lc *LedgerCommitter) GetPvtDataAndBlockByNum(seqNum uint64) (*ledger.BlockAndPvtData, error) {
 	return lc.PeerLedgerSupport.GetPvtDataAndBlockByNum(seqNum, nil)
+}
+
+// GetTransactionByID retrieves private data and block for given sequence number
+func (lc *LedgerCommitter) GetTransactionByID(txID string) (*peer.ProcessedTransaction, error) {
+	return lc.PeerLedgerSupport.GetTransactionByID(txID)
 }
 
 // LedgerHeight returns recently committed block sequence number

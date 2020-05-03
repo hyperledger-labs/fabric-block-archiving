@@ -213,6 +213,7 @@ func (arch *blockfileArchiver) archiveBlockfilelIfNecessary() {
 
 	loggerArchive.Infof("current block height:%d  vs  block archived in next archival:%d ( keep:%d )", currentBlockHeight, nextEndBlockNum, numKeepLatestBlocks)
 
+	var updated bool = false
 	for (currentBlockHeight - nextEndBlockNum) > numKeepLatestBlocks {
 		loggerArchive.Infof("archiving blockfile_%06d (end with block #%d)", nextArchivedBlockfileSuffix, nextEndBlockNum)
 
@@ -227,10 +228,14 @@ func (arch *blockfileArchiver) archiveBlockfilelIfNecessary() {
 			break
 		}
 		loggerArchive.Infof("continue... block archived in next archival:%d", nextEndBlockNum)
+		updated = true
 	}
-	arch.mgr.index.setLastArchivedBlockfileIndexed(newArchivedBlockfileSuffix)
-	arch.mgr.index.setLastArchivedBlockIndexed(newEndBlockNum)
-	blockarchive.GossipService.UpdateArchivedBlockHeight(newEndBlockNum, common.ChannelID(arch.chainID))
+
+	if updated {
+		arch.mgr.index.setLastArchivedBlockfileIndexed(newArchivedBlockfileSuffix)
+		arch.mgr.index.setLastArchivedBlockIndexed(newEndBlockNum)
+		blockarchive.GossipService.UpdateArchivedBlockHeight(newEndBlockNum, common.ChannelID(arch.chainID))
+	}
 
 }
 

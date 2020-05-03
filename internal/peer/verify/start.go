@@ -779,7 +779,7 @@ func serve(args []string, waitCh chan<- bool) error {
 	go ccSrv.Start()
 
 	// initialize archiving parameters
-	archiver.InitBlockArchiver(peerInstance.GossipService)
+	archiver.InitBlockArchiver(ledgerConfig(), peerInstance.GossipService)
 
 	logger.Debugf("Running peer")
 

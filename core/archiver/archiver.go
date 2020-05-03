@@ -6,7 +6,8 @@ COPYRIGHT Fujitsu Software Technologies Limited 2018 All Rights Reserved.
 package archiver
 
 import (
-	"github.com/hyperledger/fabric/core/ledger/ledgerconfig"
+	"github.com/hyperledger/fabric/core/ledger"
+	"github.com/hyperledger/fabric/core/ledger/kvledger"
 	"github.com/hyperledger/fabric/gossip/service"
 	"github.com/spf13/viper"
 
@@ -16,24 +17,44 @@ import (
 
 var loggerArchive = flogging.MustGetLogger("archiver.common")
 
+// The least number of data chunks which a peer node should keep on local file system
+const confArchivingRoleArchiver = "ledger.archiving.archiver.enabled"
+
+// The least number of data chunks which a peer node should keep on local file system
+const confArchivingRoleClient = "ledger.archiving.client.enabled"
+
+// The least number of data chunks which a peer node should keep on local file system
+const confArchivingKeep = "ledger.archiving.keepblocks"
+
 // InitBlockArchiver initializes the BlockArchiver functions
-func InitBlockArchiver(gossipService *service.GossipService) {
+func InitBlockArchiver(config *ledger.Config, gossipService *service.GossipService) {
 	loggerArchive.Info("Archiver.InitBlockArchiver...")
 
-	initBlockArchiverParams(gossipService)
-
-	loggerArchive.Info("Archiver.InitBlockArchiver isArchiver=", blockarchive.IsArchiver, " isClient=", blockarchive.IsClient)
-}
-
-func initBlockArchiverParams(gossipService *service.GossipService) {
-	blockarchive.IsArchiver = viper.GetBool("peer.archiver.enabled")
-	if blockarchive.IsArchiver || blockarchive.IsClient {
-		blockarchive.NumBlockfileEachArchiving, blockarchive.NumKeepLatestBlocks = ledgerconfig.GetArchivingParameters()
+	if viper.IsSet(confArchivingRoleArchiver) {
+		blockarchive.IsArchiver = viper.GetBool(confArchivingRoleArchiver)
 	} else {
-		blockarchive.IsClient = viper.GetBool("peer.archiving.enabled")
+		blockarchive.IsArchiver = false
 	}
 
-	blockarchive.BlockStorePath = ledgerconfig.GetBlockStorePath()
+	if viper.IsSet(confArchivingRoleClient) {
+		blockarchive.IsClient = viper.GetBool(confArchivingRoleClient)
+	} else {
+		blockarchive.IsClient = false
+	}
+
+	if blockarchive.IsArchiver && blockarchive.IsClient {
+		loggerArchive.Warning("Invalid configuration: archiver vs client is mutual exclusive. Both will be turned off")
+		blockarchive.IsArchiver = false
+		blockarchive.IsClient = false
+	} else if blockarchive.IsArchiver || blockarchive.IsClient {
+		blockarchive.NumKeepLatestBlocks = 100
+		if viper.IsSet(confArchivingKeep) {
+			blockarchive.NumKeepLatestBlocks = viper.GetInt(confArchivingKeep)
+		}
+	}
+
+	blockarchive.BlockStorePath = kvledger.BlockStorePath(config.RootFSPath)
 	blockarchive.GossipService = gossipService
 
+	loggerArchive.Info("Archiver.InitBlockArchiver isArchiver=", blockarchive.IsArchiver, " isClient=", blockarchive.IsClient)
 }

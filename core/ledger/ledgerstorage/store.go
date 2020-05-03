@@ -18,9 +18,10 @@ import (
 	"github.com/hyperledger/fabric/core/ledger"
 	"github.com/hyperledger/fabric/core/ledger/pvtdatapolicy"
 	"github.com/hyperledger/fabric/core/ledger/pvtdatastorage"
+	"github.com/spf13/viper"
 )
 
-const maxBlockFileSize = 16 * 1 * 1024
+var maxBlockFileSize = 64 * 1024 * 1024
 
 var logger = flogging.MustGetLogger("ledgerstorage")
 
@@ -47,6 +48,11 @@ var attrsToIndex = []blkstorage.IndexableAttr{
 
 // NewProvider returns the handle to the provider
 func NewProvider(blockStoreDir string, conf *pvtdatastorage.PrivateDataConfig, metricsProvider metrics.Provider) (*Provider, error) {
+
+	if viper.IsSet("ledger.maxblockfilesize") {
+		maxBlockFileSize = viper.GetInt("ledger.maxblockfilesize")
+	}
+
 	// Initialize the block storage
 	indexConfig := &blkstorage.IndexConfig{AttrsToIndex: attrsToIndex}
 	blockStoreProvider, err := fsblkstorage.NewProvider(

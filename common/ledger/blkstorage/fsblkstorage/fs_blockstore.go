@@ -82,7 +82,7 @@ func (store *fsBlockStore) RetrieveBlockByHash(blockHash []byte) (*common.Block,
 
 // RetrieveBlockByNumber returns the block at a given blockchain height
 func (store *fsBlockStore) RetrieveBlockByNumber(blockNum uint64) (*common.Block, error) {
-	loggerBlkStreamArchive.Infof("Retrieving block [%d] from local", blockNum)
+	loggerBlkStreamArchive.Debugf("Retrieving block [%d] from local", blockNum)
 	block, err := store.fileMgr.retrieveBlockByNumber(blockNum)
 	if err != nil && blockarchive.IsClient {
 		loggerBlkStreamArchive.Infof("Retrieving block [%d] from archiver", blockNum)
@@ -93,7 +93,7 @@ func (store *fsBlockStore) RetrieveBlockByNumber(blockNum uint64) (*common.Block
 
 // RetrieveTxByID returns a transaction for given transaction id
 func (store *fsBlockStore) RetrieveTxByID(txID string) (*common.Envelope, error) {
-	loggerBlkStreamArchive.Infof("Retrieving tx [%s] from local", txID)
+	loggerBlkStreamArchive.Debugf("Retrieving tx [%s] from local", txID)
 	envelope, err := store.fileMgr.retrieveTransactionByID(txID)
 	switch err.(type) {
 	case nil, l.NotFoundInIndexErr:

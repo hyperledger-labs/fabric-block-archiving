@@ -213,7 +213,6 @@ func NewGossipStateProvider(
 		receivedMsg := message.(protoext.ReceivedMessage)
 		msg := receivedMsg.GetGossipMessage()
 		if !(protoext.IsRemoteStateMessage(msg.GossipMessage) || msg.GetPrivateData() != nil || protoext.IsRemoteTxMessage(msg.GossipMessage)) {
-			logger.Info("remoteStateMsgFilter === 2")
 			return false
 		}
 		// Ensure we deal only with messages that belong to this channel

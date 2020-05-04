@@ -1,17 +1,27 @@
-# Copyright the Hyperledger Fabric contributors. All rights reserved.
-#
 # SPDX-License-Identifier: Apache-2.0
 
 steps:
-  - script: |
-      sudo apt-get clean
-      sudo apt-get update
-      sudo apt-get install -y libtool gcc make
-      echo "vsts  hard  nofile  65535" | sudo tee -a /etc/security/limits.conf
-      echo "vsts  soft  nofile  65535" | sudo tee -a /etc/security/limits.conf
-    displayName: Install Dependencies
+  - task: NodeTool@0
+    inputs:
+      versionSpec: $(NODE_VER)
+    displayName: Install NodeJs
   - task: GoTool@0
     inputs:
-      version: $(GOVER)
-      goPath:  $(GOPATH)
-    displayName: Install GoLang
+      version: $(GO_VER)
+      goPath: $(GOPATH)
+  - task: Go@0
+    inputs:
+      command: 'get'
+      arguments: '-u github.com/onsi/ginkgo/ginkgo'
+  - task: Go@0
+    inputs:
+      command: 'get'
+      arguments: '-u github.com/onsi/gomega/...'
+  - task: Go@0
+    inputs:
+      command: 'get'
+      arguments: '-u gopkg.in/yaml.v2'
+  - task: Go@0
+    inputs:
+      command: 'get'
+      arguments: '-u github.com/pkg/errors'

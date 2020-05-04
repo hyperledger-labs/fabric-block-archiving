@@ -6,17 +6,18 @@
 trigger:
 - master
 
+variables:
+  GOPATH: $(Agent.BuildDirectory)/go
+  PATH: $(Agent.BuildDirectory)/go/bin:/bin:/usr/bin:/sbin:/usr/sbin:/usr/local/bin:/usr/local/sbin
+  GO_VER: 1.13.8
+  NODE_VER: 10.19
+  
 jobs:
 - job: e2e_test_BDD
   pool:
     vmImage: 'ubuntu-latest'
   steps:
-
-  - task: GoTool@0
-    inputs:
-        version: '1.13'
-        goPath: '$(Pipeline.Workspace)/go'
-
+  - template: install_deps.yml
   - checkout: self 
     path: go/src/github.com/hyperledger/fabric
 
@@ -27,17 +28,13 @@ jobs:
 
   - script: |
             make peer-docker
-            make blkarchiver-repo-docker
             make configtxgen
             make cryptogen
     workingDirectory: '$(Pipeline.Workspace)/go/src/github.com/hyperledger/fabric'
 
   - script: |
-            sudo pip install virtualenv
-            virtualenv e2etest
-            . e2etest/bin/activate
-            cd feature
+            cd e2e-test
             pip install -r requirements.txt
             export PATH=$(Pipeline.Workspace)/go/src/github.com/hyperledger/fabric/.build/bin:$PATH
-            behave -t @ci --stop -k blockArchiving.feature
+            ./runTestSuite.sh
     workingDirectory: '$(Pipeline.Workspace)/dev/fabric-block-archiving-testenv'

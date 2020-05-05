@@ -1,6 +1,6 @@
 # Hyperledger Fabric Block Archiving
 
-[![Build Status](https://dev.azure.com/Hyperledger/Fabric-Block-Archiving/_apis/build/status/hyperledger-labs.fabric-block-archiving?branchName=master)](https://dev.azure.com/Hyperledger/Fabric-Block-Archiving/_build/latest?definitionId=55&branchName=master)
+[![Build Status](https://dev.azure.com/Hyperledger/Hyperledger%20Labs/_apis/build/status/hyperledger-labs.fabric-block-archiving?branchName=master)](https://dev.azure.com/Hyperledger/Hyperledger%20Labs/_build/latest?definitionId=83&branchName=master)
 
 This enhancement for Hyperledger Fabric is aiming to:
 * Reduce the total amount of storage space required for an organisation to operate a Hyperledger Fabric network by archiving block data into repository.

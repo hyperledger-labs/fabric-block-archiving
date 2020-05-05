@@ -17,11 +17,9 @@ jobs:
   pool:
     vmImage: 'ubuntu-latest'
   steps:
-  - template: install_deps.yml
   - checkout: self
-    clean: true
-    fetchDepth: 3
     path: go/src/github.com/hyperledger/fabric
+  - template: install_deps.yml
 
   - script: |
             mkdir -p $(Pipeline.Workspace)/dev
@@ -30,13 +28,14 @@ jobs:
 
   - script: |
             make peer-docker
-            make configtxgen
-            make cryptogen
+            make native
+            docker pull hyperledger/fabric-ca:1.4.6
+            docker tag hyperledger/fabric-ca:1.4.6 hyperledger/fabric-ca:2.0.1
     workingDirectory: '$(Pipeline.Workspace)/go/src/github.com/hyperledger/fabric'
 
   - script: |
             cd e2e-test
             pip install -r requirements.txt
-            export PATH=$(Pipeline.Workspace)/go/src/github.com/hyperledger/fabric/.build/bin:$PATH
+            export PATH=$(Pipeline.Workspace)/go/src/github.com/hyperledger/fabric/build/bin:$PATH
             ./runTestSuite.sh
     workingDirectory: '$(Pipeline.Workspace)/dev/fabric-block-archiving-testenv'

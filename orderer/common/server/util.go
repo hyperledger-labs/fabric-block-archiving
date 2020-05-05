@@ -26,7 +26,7 @@ func createLedgerFactory(conf *config.TopLevel, metricsProvider metrics.Provider
 	}
 
 	logger.Debug("Ledger dir:", ld)
-	lf, err := fileledger.New(ld, metricsProvider, "", "")
+	lf, err := fileledger.New(ld, metricsProvider)
 	if err != nil {
 		return nil, "", errors.WithMessage(err, "Error in opening ledger factory")
 	}

@@ -21,7 +21,7 @@ jobs:
   - checkout: self
     clean: true
     fetchDepth: 3
-    path: $(Pipeline.Workspace)/go/src/github.com/hyperledger/fabric
+    path: go/src/github.com/hyperledger/fabric
 
   - script: |
             mkdir -p $(Pipeline.Workspace)/dev

@@ -18,8 +18,10 @@ jobs:
     vmImage: 'ubuntu-latest'
   steps:
   - template: install_deps.yml
-  - checkout: self 
-    path: go/src/github.com/hyperledger/fabric
+  - checkout: self
+    clean: true
+    fetchDepth: 3
+    path: $(Pipeline.Workspace)/go/src/github.com/hyperledger/fabric
 
   - script: |
             mkdir -p $(Pipeline.Workspace)/dev

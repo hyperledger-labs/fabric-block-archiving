@@ -163,6 +163,7 @@ type gossipChannel struct {
 	stateInfoRequestScheduler *time.Ticker
 	memFilter                 *membershipFilter
 	ledgerHeight              uint64
+	archivedBlockHeight       uint64
 	incTime                   uint64
 	leftChannel               int32
 	membershipTracker         *membershipTracker
@@ -354,7 +355,7 @@ func (gc *gossipChannel) LeaveChannel() {
 	if prevMsg := gc.stateInfoMsg; prevMsg != nil {
 		chaincodes = prevMsg.GetStateInfo().Properties.Chaincodes
 		height = prevMsg.GetStateInfo().Properties.LedgerHeight
-		heightArchived = prevMsg.GetStateInfo().Properties.ArchivedBlockHeight
+		heightArchived = gc.archivedBlockHeight
 	}
 	gc.updateProperties(height, chaincodes, true, heightArchived)
 }
@@ -912,7 +913,7 @@ func (gc *gossipChannel) UpdateLedgerHeight(height uint64) {
 	if prevMsg := gc.stateInfoMsg; prevMsg != nil {
 		leftChannel = prevMsg.GetStateInfo().Properties.LeftChannel
 		chaincodes = prevMsg.GetStateInfo().Properties.Chaincodes
-		heightArchived = prevMsg.GetStateInfo().Properties.ArchivedBlockHeight
+		heightArchived = gc.archivedBlockHeight
 	}
 	gc.updateProperties(height, chaincodes, leftChannel, heightArchived)
 }
@@ -946,7 +947,7 @@ func (gc *gossipChannel) UpdateChaincodes(chaincodes []*proto.Chaincode) {
 	if prevMsg := gc.stateInfoMsg; prevMsg != nil {
 		ledgerHeight = prevMsg.GetStateInfo().Properties.LedgerHeight
 		leftChannel = prevMsg.GetStateInfo().Properties.LeftChannel
-		heightArchived = prevMsg.GetStateInfo().Properties.ArchivedBlockHeight
+		heightArchived = gc.archivedBlockHeight
 	}
 	gc.updateProperties(ledgerHeight, chaincodes, leftChannel, heightArchived)
 }
@@ -956,6 +957,9 @@ func (gc *gossipChannel) UpdateChaincodes(chaincodes []*proto.Chaincode) {
 func (gc *gossipChannel) updateStateInfo(msg *protoext.SignedGossipMessage) {
 	gc.stateInfoMsgStore.Add(msg)
 	gc.ledgerHeight = msg.GetStateInfo().Properties.LedgerHeight
+	if msg.GetStateInfo().Properties.ArchivedBlockHeight > 0 {
+		gc.archivedBlockHeight = msg.GetStateInfo().Properties.ArchivedBlockHeight
+	}
 	gc.stateInfoMsg = msg
 	atomic.StoreInt32(&gc.shouldGossipStateInfo, int32(1))
 }
